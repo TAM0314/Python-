@@ -4,6 +4,7 @@ export async function POST(request: NextRequest) {
   const { code } = await request.json();
   let output = '';
   let analysis = '';
+  let errorLines: number[] = [];
 
   try {
     const exec = await import('child_process');
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
 
     if (output.toLowerCase().includes('error') || output.toLowerCase().includes('traceback')) {
       analysis = generateAnalysis(output);
+      errorLines = extractErrorLines(output);
     } else {
       analysis = 'エラーがありません。必要に応じて改善点を検討してください。';
     }
@@ -39,9 +41,19 @@ export async function POST(request: NextRequest) {
     analysis = String(error);
   }
 
-  return new Response(JSON.stringify({ output, analysis }), {
+  return new Response(JSON.stringify({ output, analysis, errorLines }), {
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+function extractErrorLines(text: string): number[] {
+  const lines = new Set<number>();
+  const linePattern = /line (\d+)/gi;
+  let match;
+  while ((match = linePattern.exec(text)) !== null) {
+    lines.add(parseInt(match[1], 10));
+  }
+  return Array.from(lines).sort((a, b) => a - b);
 }
 
 function generateAnalysis(text: string) {

@@ -10,6 +10,7 @@ export default function Home() {
   const [code, setCode] = useState(defaultCode);
   const [output, setOutput] = useState('実行結果がここに表示されます。');
   const [analysis, setAnalysis] = useState('ここにエラー説明や改善提案が表示されます。');
+  const [errorLines, setErrorLines] = useState<number[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const codeRef = useRef<HTMLTextAreaElement | null>(null);
   const lineNumberRef = useRef<HTMLDivElement | null>(null);
@@ -50,9 +51,11 @@ export default function Home() {
       const data = await response.json();
       setOutput(data.output);
       setAnalysis(data.analysis);
+      setErrorLines(data.errorLines ?? []);
     } catch (error) {
       setOutput('実行に失敗しました。');
       setAnalysis(String(error));
+      setErrorLines([]);
     } finally {
       setIsRunning(false);
     }
@@ -158,8 +161,34 @@ export default function Home() {
               <CardDescription>構文エラーや改善点を表示。</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="min-h-[320px] overflow-auto rounded-3xl border border-slate-800 bg-slate-950/90 p-4 text-sm leading-6 text-slate-100">
-                {analysis}
+              <div className="min-h-[320px] overflow-auto rounded-3xl border border-slate-800 bg-slate-950/90 p-4 text-sm leading-6 text-slate-100 space-y-4">
+                <p>{analysis}</p>
+                {errorLines.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">
+                      エラー該当行
+                    </p>
+                    <div className="overflow-hidden rounded-xl border border-slate-700 font-mono text-xs">
+                      {code.split('\n').map((line, index) => {
+                        const lineNum = index + 1;
+                        const isError = errorLines.includes(lineNum);
+                        return (
+                          <div
+                            key={lineNum}
+                            className={`flex ${isError ? 'bg-red-950/70 text-red-300' : 'text-slate-500'}`}
+                          >
+                            <span className={`select-none w-10 shrink-0 border-r px-2 py-0.5 text-right ${isError ? 'border-red-800 bg-red-900/60 text-red-400 font-bold' : 'border-slate-700 bg-slate-900/60'}`}>
+                              {lineNum}
+                            </span>
+                            <span className={`flex-1 px-3 py-0.5 ${isError ? 'text-red-200' : 'text-slate-400'}`}>
+                              {line || '\u00a0'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
