@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
@@ -12,6 +12,15 @@ export default function Home() {
   const [analysis, setAnalysis] = useState('ここにエラー説明や改善提案が表示されます。');
   const [isRunning, setIsRunning] = useState(false);
   const codeRef = useRef<HTMLTextAreaElement | null>(null);
+  const lineNumberRef = useRef<HTMLDivElement | null>(null);
+
+  const syncScroll = useCallback(() => {
+    if (codeRef.current && lineNumberRef.current) {
+      lineNumberRef.current.scrollTop = codeRef.current.scrollTop;
+    }
+  }, []);
+
+  const lineCount = code.split('\n').length;
 
   const copyAll = async () => {
     if (codeRef.current) {
@@ -107,12 +116,27 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent>
-              <textarea
-                ref={codeRef}
-                className="min-h-[520px] w-full resize-none rounded-3xl border border-slate-800 bg-slate-950/90 p-4 font-mono text-sm text-slate-100 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-              />
+              <div className="flex min-h-[520px] overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/90 transition focus-within:border-cyan-500 focus-within:ring-2 focus-within:ring-cyan-500/20">
+                <div
+                  ref={lineNumberRef}
+                  className="select-none overflow-hidden border-r border-slate-800 bg-slate-900/60 py-4 pr-3 pl-4 font-mono text-sm leading-6 text-slate-500"
+                  style={{ minWidth: '3rem' }}
+                >
+                  {Array.from({ length: lineCount }, (_, i) => (
+                    <div key={i + 1} className="text-right">
+                      {i + 1}
+                    </div>
+                  ))}
+                </div>
+                <textarea
+                  ref={codeRef}
+                  className="min-h-[520px] flex-1 resize-none bg-transparent p-4 font-mono text-sm leading-6 text-slate-100 outline-none"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  onScroll={syncScroll}
+                  spellCheck={false}
+                />
+              </div>
             </CardContent>
           </Card>
 
