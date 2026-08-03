@@ -11,9 +11,17 @@ export async function POST(request: NextRequest) {
     const { spawn } = exec;
     const py = spawn('python', ['-c', code]);
 
+    const TIMEOUT_MS = 10000;
+
     output = await new Promise((resolve, reject) => {
       let stdout = '';
       let stderr = '';
+
+      const timer = setTimeout(() => {
+        py.kill('SIGKILL');
+        resolve('⏱ 実行がタイムアウトしました（10秒）。無限ループや重い処理がないか確認してください。');
+      }, TIMEOUT_MS);
+
       py.stdout.on('data', (chunk) => {
         stdout += chunk.toString();
       });
@@ -21,13 +29,17 @@ export async function POST(request: NextRequest) {
         stderr += chunk.toString();
       });
       py.on('close', () => {
+        clearTimeout(timer);
         if (stderr) {
           resolve(stderr);
         } else {
           resolve(stdout || '実行が完了しました。');
         }
       });
-      py.on('error', (error) => reject(error));
+      py.on('error', (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
     });
 
     if (output.toLowerCase().includes('error') || output.toLowerCase().includes('traceback')) {

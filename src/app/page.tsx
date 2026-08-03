@@ -1,13 +1,17 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
 const defaultCode = `print('Hello, Python!')\n`;
+const STORAGE_KEY = 'python-editor-code';
 
 export default function Home() {
-  const [code, setCode] = useState(defaultCode);
+  const [code, setCode] = useState(() => {
+    if (typeof window === 'undefined') return defaultCode;
+    return localStorage.getItem(STORAGE_KEY) ?? defaultCode;
+  });
   const [output, setOutput] = useState('実行結果がここに表示されます。');
   const [analysis, setAnalysis] = useState('ここにエラー説明や改善提案が表示されます。');
   const [errorLines, setErrorLines] = useState<number[]>([]);
@@ -20,6 +24,10 @@ export default function Home() {
       lineNumberRef.current.scrollTop = codeRef.current.scrollTop;
     }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, code);
+  }, [code]);
 
   const lineCount = code.split('\n').length;
 
@@ -110,8 +118,23 @@ export default function Home() {
                 <CardDescription>Python コードを編集し、実行結果を確認。</CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <Button variant="secondary" className="rounded-lg px-3 py-2 text-xs" onClick={copyAll}>
+                <Button
+                  variant="secondary"
+                  className="rounded-lg px-3 py-2 text-xs"
+                  onClick={copyAll}
+                >
                   全てコピー
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="rounded-lg px-3 py-2 text-xs text-slate-400"
+                  onClick={() => {
+                    if (confirm('コードをリセットしますか？')) {
+                      setCode(defaultCode);
+                    }
+                  }}
+                >
+                  リセット
                 </Button>
                 <Button onClick={runCode} disabled={isRunning}>
                   {isRunning ? '実行中…' : '実行'}
