@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
-  const { code } = await request.json();
+  const { code, stdin = '' } = await request.json();
   let output = '';
   let analysis = '';
   let errorLines: number[] = [];
@@ -12,6 +12,11 @@ export async function POST(request: NextRequest) {
     const py = spawn('python', ['-c', code]);
 
     const TIMEOUT_MS = 10000;
+
+    if (stdin) {
+      py.stdin.write(stdin.endsWith('\n') ? stdin : stdin + '\n');
+    }
+    py.stdin.end();
 
     output = await new Promise((resolve, reject) => {
       let stdout = '';
