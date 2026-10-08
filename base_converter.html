@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基数変換マスター & タイムアタック</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-900/80 py-4 px-6 shadow-xl backdrop-blur-xl">
+        <div class="max-w-4xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-cyan-600 text-white flex items-center justify-center font-bold text-xl shadow-md">
+                    2
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white">
+                        基数変換マスター & タイムアタック
+                    </h1>
+                    <p class="text-xs text-slate-400">
+                        2進数・10進数・16進数の相互変換学習ツール
+                    </p>
+                </div>
+            </div>
+            <div class="flex bg-slate-800 p-1 rounded-xl">
+                <button id="tab-converter" onclick="switchMode('converter')" class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-cyan-600 text-white shadow">
+                    通常変換モード
+                </button>
+                <button id="tab-timeattack" onclick="switchMode('timeattack')" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white">
+                    タイムアタック
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-6 flex flex-col justify-center">
+        <!-- Converter Mode -->
+        <div id="section-converter" class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-6 sm:p-10 space-y-8">
+            <div class="text-center space-y-2">
+                <h2 class="text-2xl font-bold text-white">リアルタイム基数変換</h2>
+                <p class="text-sm text-slate-400">
+                    いずれかの欄に入力すると、自動的に他の進数へリアルタイム変換されます。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="space-y-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                        10進数 (Decimal)
+                    </label>
+                    <input
+                        type="text"
+                        id="input-dec"
+                        value="42"
+                        oninput="handleInput('dec', this.value)"
+                        placeholder="例: 42"
+                        class="w-full px-4 py-3 rounded-lg border border-slate-700 bg-slate-900 text-lg font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                    <p class="text-xs text-slate-500">使用文字: 0-9</p>
+                </div>
+
+                <div class="space-y-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                        2進数 (Binary)
+                    </label>
+                    <input
+                        type="text"
+                        id="input-bin"
+                        value="101010"
+                        oninput="handleInput('bin', this.value)"
+                        placeholder="例: 101010"
+                        class="w-full px-4 py-3 rounded-lg border border-slate-700 bg-slate-900 text-lg font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                    <p class="text-xs text-slate-500">使用文字: 0, 1</p>
+                </div>
+
+                <div class="space-y-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                        16進数 (Hexadecimal)
+                    </label>
+                    <input
+                        type="text"
+                        id="input-hex"
+                        value="2a"
+                        oninput="handleInput('hex', this.value)"
+                        placeholder="例: 2a"
+                        class="w-full px-4 py-3 rounded-lg border border-slate-700 bg-slate-900 text-lg font-mono text-white uppercase focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                    <p class="text-xs text-slate-500">使用文字: 0-9, a-f</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                <h3 class="text-sm font-semibold text-cyan-400">詳細情報 (8bit パディング表示)</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-mono">
+                    <div class="bg-slate-900 p-3 rounded-lg border border-slate-800 flex justify-between">
+                        <span class="text-slate-400">8ビット2進数:</span>
+                        <span id="info-8bit" class="font-bold text-cyan-400">00101010</span>
+                    </div>
+                    <div class="bg-slate-900 p-3 rounded-lg border border-slate-800 flex justify-between">
+                        <span class="text-slate-400">16進数 (大文字):</span>
+                        <span id="info-hex" class="font-bold text-cyan-400">0x2A</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Time Attack Mode -->
+        <div id="section-timeattack" class="hidden bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-6 sm:p-10 space-y-8">
+            <div id="ta-idle" class="text-center space-y-6 py-8">
+                <div class="w-20 h-20 bg-cyan-950 text-cyan-400 rounded-2xl mx-auto flex items-center justify-center text-3xl font-bold shadow-inner border border-cyan-800">
+                    ⏱️
+                </div>
+                <div class="space-y-2">
+                    <h2 class="text-2xl font-bold text-white">基数変換タイムアタック</h2>
+                    <p class="text-sm text-slate-400 max-w-md mx-auto">
+                        2進数・10進数・16進数の変換問題を全10問出題します。タイムを競って腕試ししよう！
+                    </p>
+                </div>
+                <button onclick="startTimeAttack()" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-lg transition-all text-lg">
+                    タイムアタック開始！
+                </button>
+            </div>
+
+            <div id="ta-playing" class="hidden space-y-6">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+                    <div class="text-sm font-semibold text-slate-400">
+                        問題 <span id="ta-current-num" class="text-cyan-400 font-bold text-base">1</span> / 10
+                    </div>
+                    <div id="ta-timer" class="text-xl font-mono font-bold text-cyan-400 bg-slate-950 px-4 py-1.5 rounded-lg border border-slate-800">
+                        0.00 秒
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-8 text-center space-y-4">
+                    <span class="inline-block bg-cyan-900 text-cyan-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-cyan-700">
+                        Question
+                    </span>
+                    <h3 id="ta-question-text" class="text-2xl font-bold text-white">
+                        --
+                    </h3>
+                    <div id="ta-feedback" class="text-lg font-bold h-8 text-cyan-400"></div>
+                </div>
+
+                <form onsubmit="submitAnswer(event)" class="space-y-4">
+                    <div class="flex gap-3">
+                        <input
+                            type="text"
+                            id="ta-answer-input"
+                            placeholder="答えを入力..."
+                            autocomplete="off"
+                            autofocus
+                            class="flex-1 px-5 py-4 rounded-xl border border-slate-700 bg-slate-950 text-xl font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-sm"
+                        />
+                        <button type="submit" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-md transition-all text-lg">
+                            解答
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-500 text-center">
+                        Enterキーで解答を送信できます（16進数は大文字・小文字どちらでも可）
+                    </p>
+                </form>
+            </div>
+
+            <div id="ta-finished" class="hidden text-center space-y-6 py-6">
+                <div class="w-20 h-20 bg-emerald-950 text-emerald-400 rounded-2xl mx-auto flex items-center justify-center text-3xl font-bold shadow-inner border border-emerald-800">
+                    🏆
+                </div>
+                <div class="space-y-2">
+                    <h2 class="text-2xl font-bold text-white">クリアおめでとうございます！</h2>
+                    <p class="text-sm text-slate-400">全10問の変換を達成しました。</p>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 max-w-sm mx-auto space-y-3">
+                    <div class="text-sm text-slate-400">タイム</div>
+                    <div id="ta-final-time" class="text-4xl font-extrabold font-mono text-cyan-400">
+                        0.00 秒
+                    </div>
+                    <div id="ta-avg-time" class="text-xs text-slate-500">
+                        1問あたりの平均: 0.00 秒/問
+                    </div>
+                </div>
+
+                <div class="flex justify-center gap-4">
+                    <button onclick="startTimeAttack()" class="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-md transition-all">
+                        もう一度挑戦する
+                    </button>
+                    <button onclick="resetToIdle()" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all">
+                        トップに戻る
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-6 text-center text-xs text-slate-500 border-t border-slate-800 bg-slate-900/50">
+        Base Conversion Master & Time Attack — Single File Tool
+    </footer>
+
+    <script>
+        // --- Converter Logic ---
+        function handleInput(type, val) {
+            const decInput = document.getElementById('input-dec');
+            const binInput = document.getElementById('input-bin');
+            const hexInput = document.getElementById('input-hex');
+            const info8bit = document.getElementById('info-8bit');
+            const infoHex = document.getElementById('info-hex');
+
+            if (type === 'dec') {
+                if (!/^\d*$/.test(val)) return;
+                const num = parseInt(val, 10);
+                if (isNaN(num) || val === "") {
+                    binInput.value = "";
+                    hexInput.value = "";
+                    info8bit.textContent = "-";
+                    infoHex.textContent = "-";
+                } else {
+                    binInput.value = num.toString(2);
+                    hexInput.value = num.toString(16);
+                    info8bit.textContent = (num >= 0 && num <= 255) ? num.toString(2).padStart(8, "0") : "範囲外 (0-255)";
+                    infoHex.textContent = "0x" + num.toString(16).toUpperCase();
+                }
+            } else if (type === 'bin') {
+                if (!/^[01]*$/.test(val)) return;
+                const num = parseInt(val, 2);
+                if (isNaN(num) || val === "") {
+                    decInput.value = "";
+                    hexInput.value = "";
+                    info8bit.textContent = "-";
+                    infoHex.textContent = "-";
+                } else {
+                    decInput.value = num.toString(10);
+                    hexInput.value = num.toString(16);
+                    info8bit.textContent = (num >= 0 && num <= 255) ? num.toString(2).padStart(8, "0") : "範囲外 (0-255)";
+                    infoHex.textContent = "0x" + num.toString(16).toUpperCase();
+                }
+            } else if (type === 'hex') {
+                val = val.toLowerCase();
+                if (!/^[0-9a-f]*$/.test(val)) return;
+                const num = parseInt(val, 16);
+                if (isNaN(num) || val === "") {
+                    decInput.value = "";
+                    binInput.value = "";
+                    info8bit.textContent = "-";
+                    infoHex.textContent = "-";
+                } else {
+                    decInput.value = num.toString(10);
+                    binInput.value = num.toString(2);
+                    info8bit.textContent = (num >= 0 && num <= 255) ? num.toString(2).padStart(8, "0") : "範囲外 (0-255)";
+                    infoHex.textContent = "0x" + num.toString(16).toUpperCase();
+                }
+            }
+        }
+
+        // Initialize converter values
+        handleInput('dec', '42');
+
+        // --- Mode Switching ---
+        function switchMode(mode) {
+            const tabConv = document.getElementById('tab-converter');
+            const tabTa = document.getElementById('tab-timeattack');
+            const secConv = document.getElementById('section-converter');
+            const secTa = document.getElementById('section-timeattack');
+
+            if (mode === 'converter') {
+                tabConv.className = "px-4 py-2 rounded-lg text-sm font-medium transition-all bg-cyan-600 text-white shadow";
+                tabTa.className = "px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white";
+                secConv.classList.remove('hidden');
+                secTa.classList.add('hidden');
+                stopTimer();
+            } else {
+                tabTa.className = "px-4 py-2 rounded-lg text-sm font-medium transition-all bg-cyan-600 text-white shadow";
+                tabConv.className = "px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white";
+                secTa.classList.remove('hidden');
+                secConv.classList.add('hidden');
+                resetToIdle();
+            }
+        }
+
+        // --- Time Attack Logic ---
+        let taQuestions = [];
+        let taCurrentIndex = 0;
+        let taStartTime = 0;
+        let taTimerInterval = null;
+        let taElapsed = 0;
+
+        function startTimeAttack() {
+            taQuestions = [];
+            const bases = [2, 10, 16];
+            const baseNames = { 2: "2進数", 10: "10進数", 16: "16進数" };
+
+            for (let i = 0; i < 10; i++) {
+                const val = Math.floor(Math.random() * 254) + 1;
+                const fromBase = bases[Math.floor(Math.random() * bases.length)];
+                let toBase = bases[Math.floor(Math.random() * bases.length)];
+                while (toBase === fromBase) {
+                    toBase = bases[Math.floor(Math.random() * bases.length)];
+                }
+
+                let formatVal = "";
+                if (fromBase === 2) formatVal = val.toString(2);
+                else if (fromBase === 10) formatVal = val.toString(10);
+                else formatVal = val.toString(16).toUpperCase();
+
+                let targetStr = "";
+                if (toBase === 2) targetStr = val.toString(2);
+                else if (toBase === 10) targetStr = val.toString(10);
+                else targetStr = val.toString(16).toUpperCase();
+
+                const questionStr = `${baseNames[fromBase]} 「${formatVal}」 を ${baseNames[toBase]} に変換せよ`;
+                taQuestions.push({ questionStr, answerStr: targetStr });
+            }
+
+            taCurrentIndex = 0;
+            document.getElementById('ta-idle').classList.add('hidden');
+            document.getElementById('ta-finished').classList.add('hidden');
+            document.getElementById('ta-playing').classList.remove('hidden');
+
+            renderQuestion();
+            taStartTime = Date.now();
+            if (taTimerInterval) clearInterval(taTimerInterval);
+            taTimerInterval = setInterval(() => {
+                taElapsed = Date.now() - taStartTime;
+                document.getElementById('ta-timer').textContent = (taElapsed / 1000).toFixed(2) + " 秒";
+            }, 100);
+        }
+
+        function renderQuestion() {
+            document.getElementById('ta-current-num').textContent = taCurrentIndex + 1;
+            document.getElementById('ta-question-text').textContent = taQuestions[taCurrentIndex].questionStr;
+            const input = document.getElementById('ta-answer-input');
+            input.value = "";
+            input.focus();
+        }
+
+        function submitAnswer(e) {
+            e.preventDefault();
+            const input = document.getElementById('ta-answer-input');
+            const userAns = input.value.trim().toUpperCase();
+            const correctAns = taQuestions[taCurrentIndex].answerStr.toUpperCase();
+            const feedback = document.getElementById('ta-feedback');
+
+            if (userAns === correctAns) {
+                feedback.textContent = "正解！ 🎉";
+                setTimeout(() => feedback.textContent = "", 600);
+
+                taCurrentIndex++;
+                if (taCurrentIndex < taQuestions.length) {
+                    renderQuestion();
+                } else {
+                    clearInterval(taTimerInterval);
+                    document.getElementById('ta-playing').classList.add('hidden');
+                    document.getElementById('ta-finished').classList.remove('hidden');
+                    const finalSec = (taElapsed / 1000).toFixed(2);
+                    document.getElementById('ta-final-time').textContent = finalSec + " 秒";
+                    document.getElementById('ta-avg-time').textContent = `1問あたりの平均: ${(taElapsed / 1000 / 10).toFixed(2)} 秒/問`;
+                }
+            } else {
+                feedback.textContent = "不正解... もう一度！ ❌";
+                setTimeout(() => feedback.textContent = "", 800);
+            }
+        }
+
+        function stopTimer() {
+            if (taTimerInterval) clearInterval(taTimerInterval);
+        }
+
+        function resetToIdle() {
+            stopTimer();
+            document.getElementById('ta-playing').classList.add('hidden');
+            document.getElementById('ta-finished').classList.add('hidden');
+            document.getElementById('ta-idle').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
