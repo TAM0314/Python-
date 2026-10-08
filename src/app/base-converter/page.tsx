@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import Link from "next/link";
 
 type Mode = "converter" | "timeattack";
 
@@ -27,6 +26,7 @@ export default function BaseConverterPage() {
 
   // --- Time Attack Mode State ---
   const [taState, setTaState] = useState<"idle" | "playing" | "finished">("idle");
+  const [taModeSelect, setTaModeSelect] = useState<string>("random");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -119,10 +119,27 @@ export default function BaseConverterPage() {
     const qs: Question[] = [];
     for (let i = 0; i < 10; i++) {
       const val = Math.floor(Math.random() * 254) + 1;
-      const fromBase = bases[Math.floor(Math.random() * bases.length)];
-      let toBase = bases[Math.floor(Math.random() * bases.length)];
-      while (toBase === fromBase) {
+      let fromBase: 2 | 10 | 16 = 10;
+      let toBase: 2 | 10 | 16 = 2;
+
+      if (taModeSelect === "random") {
+        fromBase = bases[Math.floor(Math.random() * bases.length)];
         toBase = bases[Math.floor(Math.random() * bases.length)];
+        while (toBase === fromBase) {
+          toBase = bases[Math.floor(Math.random() * bases.length)];
+        }
+      } else if (taModeSelect === "2to10") {
+        fromBase = 2; toBase = 10;
+      } else if (taModeSelect === "10to2") {
+        fromBase = 10; toBase = 2;
+      } else if (taModeSelect === "10to16") {
+        fromBase = 10; toBase = 16;
+      } else if (taModeSelect === "16to10") {
+        fromBase = 16; toBase = 10;
+      } else if (taModeSelect === "2to16") {
+        fromBase = 2; toBase = 16;
+      } else if (taModeSelect === "16to2") {
+        fromBase = 16; toBase = 2;
       }
 
       let formatVal = "";
@@ -310,7 +327,7 @@ export default function BaseConverterPage() {
           <Card>
             <CardHeader>
               <CardTitle>タイムアタックモード</CardTitle>
-              <CardDescription>全10問の変換問題をどれだけ早く解けるか挑戦します。</CardDescription>
+              <CardDescription>変換パターンを選んで全10問のタイムアタックに挑戦します。</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {taState === "idle" && (
@@ -321,10 +338,30 @@ export default function BaseConverterPage() {
                   <div className="space-y-2">
                     <h3 className="text-2xl font-bold text-white">タイムアタック開始準備</h3>
                     <p className="text-sm text-slate-400 max-w-md mx-auto">
-                      2進数・10進数・16進数の変換問題を全10問出題します。準備ができたらスタートボタンを押してください。
+                      変換モードを選択してスタートボタンを押してください。
                     </p>
                   </div>
-                  <Button onClick={handleStartGame} className="px-8 py-6 text-lg">
+
+                  <div className="max-w-xs mx-auto space-y-2 text-left">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                      変換モード選択
+                    </label>
+                    <select
+                      value={taModeSelect}
+                      onChange={(e) => setTaModeSelect(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    >
+                      <option value="random">🔀 ランダム（すべての組み合わせ）</option>
+                      <option value="2to10">2進数 ⇒ 10進数</option>
+                      <option value="10to2">10進数 ⇒ 2進数</option>
+                      <option value="10to16">10進数 ⇒ 16進数</option>
+                      <option value="16to10">16進数 ⇒ 10進数</option>
+                      <option value="2to16">2進数 ⇒ 16進数</option>
+                      <option value="16to2">16進数 ⇒ 2進数</option>
+                    </select>
+                  </div>
+
+                  <Button onClick={handleStartGame} className="px-8 py-4 text-lg">
                     タイムアタック開始！
                   </Button>
                 </div>
@@ -343,7 +380,11 @@ export default function BaseConverterPage() {
 
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-4">
                     <span className="inline-block bg-cyan-950 text-cyan-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-cyan-800">
-                      Question {currentIndex + 1}
+                      {(() => {
+                        const baseNames = { 2: "2進数", 10: "10進数", 16: "16進数" };
+                        const q = questions[currentIndex];
+                        return `${baseNames[q.fromBase]} ⇒ ${baseNames[q.toBase]}`;
+                      })()}
                     </span>
                     <h3 className="text-2xl font-bold text-white">
                       {questions[currentIndex].questionStr}
