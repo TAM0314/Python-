@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カクテル原価・利益分析ツール</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 12mm 10mm;
+            }
+            body {
+                background: white !important;
+                font-size: 10px !important;
+                color: #000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                padding-top: 0 !important;
+            }
+            header, button, input[type="file"], .no-print {
+                display: none !important;
+            }
+            /* 印刷専用ヘッダーの表示 */
+            .print-header {
+                display: block !important;
+                text-align: center;
+                font-size: 16px;
+                font-weight: bold;
+                margin-bottom: 12px;
+                border-bottom: 2px solid #334155;
+                padding-bottom: 4px;
+            }
+            .shadow-sm, .shadow-md {
+                box-shadow: none !important;
+                border: 1px solid #cbd5e1 !important;
+            }
+            main {
+                display: grid !important;
+                grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+                gap: 10px !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .lg\:col-span-7 {
+                grid-column: span 7 / span 7 !important;
+            }
+            .lg\:col-span-5 {
+                grid-column: span 5 / span 5 !important;
+            }
+            .bg-white, .bg-slate-50, .bg-emerald-50, .bg-amber-50 {
+                background: white !important;
+                color: black !important;
+                padding: 8px !important;
+                margin-bottom: 6px !important;
+            }
+            /* 印刷時の原価サマリーカードを目立たせる */
+            .bg-gradient-to-br {
+                background: #f1f5f9 !important;
+                border: 2px solid #0f172a !important;
+                color: black !important;
+                padding: 10px !important;
+                margin-bottom: 8px !important;
+            }
+            .bg-gradient-to-br span, .bg-gradient-to-br div {
+                color: black !important;
+            }
+            #unitCostDisplay {
+                font-size: 16px !important;
+                font-weight: 800 !important;
+            }
+            input, textarea {
+                border: none !important;
+                background: transparent !important;
+                padding: 1px !important;
+                font-size: 10px !important;
+                color: black !important;
+            }
+            textarea {
+                resize: none !important;
+                overflow: visible !important;
+            }
+            table {
+                font-size: 9.5px !important;
+                width: 100% !important;
+                table-layout: fixed !important;
+            }
+            /* 印刷時の材料テーブル列幅 (材料名をさらに広く) */
+            #materialTableBody tr td:nth-child(1), 
+            .overflow-x-auto th:nth-child(1) { width: 38% !important; }
+            #materialTableBody tr td:nth-child(2), 
+            .overflow-x-auto th:nth-child(2) { width: 13% !important; }
+            #materialTableBody tr td:nth-child(3), 
+            .overflow-x-auto th:nth-child(3) { width: 12% !important; }
+            #materialTableBody tr td:nth-child(4), 
+            .overflow-x-auto th:nth-child(4) { width: 12% !important; }
+            #materialTableBody tr td:nth-child(5), 
+            .overflow-x-auto th:nth-child(5) { width: 12% !important; text-align: center !important; }
+            #materialTableBody tr td:nth-child(6), 
+            .overflow-x-auto th:nth-child(6) { width: 13% !important; text-align: right !important; }
+
+            th, td {
+                padding: 3px 4px !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                white-space: nowrap !important;
+            }
+            h2 {
+                font-size: 11px !important;
+                margin-bottom: 3px !important;
+            }
+            .space-y-6 > * + * {
+                margin-top: 6px !important;
+            }
+        }
+        .print-header {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col pt-2">
+    <!-- 印刷専用タイトル -->
+    <div class="print-header">【 カクテル原価・利益分析レポート 】</div>
+
+    <!-- ヘッダー -->
+    <header class="bg-indigo-600 text-white shadow-md py-4 px-6 mb-6">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                カクテル原価・利益分析ツール
+            </h1>
+            <div class="flex items-center gap-2">
+                <button onclick="exportData()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    データ保存(JSON)
+                </button>
+                <label class="bg-indigo-700 hover:bg-indigo-800 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    読み込み
+                    <input type="file" id="importFile" accept=".json" onchange="importData(event)" class="hidden">
+                </label>
+                <button onclick="window.print()" class="bg-white text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    印刷 / PDF保存
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="max-w-6xl mx-auto px-4 flex-grow w-full grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12">
+        
+        <!-- 左側：入力セクション (7カラム) -->
+        <div class="lg:col-span-7 space-y-6">
+            
+            <!-- カクテル基本情報 -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-700 mb-3 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-indigo-600 rounded-full"></span>
+                    カクテル基本情報
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">カクテル名</label>
+                        <input type="text" id="productName" value="ジントニック" placeholder="例: ジントニック" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm" oninput="saveToLocalStorage()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">作成単位（通常は1杯）</label>
+                        <input type="number" id="batchSize" value="1" min="1" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm" oninput="calculate(); saveToLocalStorage();">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 材料費入力セクション -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-2">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2">
+                            <span class="w-2 h-6 bg-indigo-600 rounded-full"></span>
+                            材料費（スピリッツ・リキュール・割材など）
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">※「ボトル容量」と「1杯の使用量」を入れると、1ボトルで何杯作れるかと原価が自動計算されます。</p>
+                    </div>
+                    <button onclick="addMaterialRow()" class="no-print bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        材料を追加
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto mt-4">
+                    <table class="w-full text-left border-collapse" style="table-layout: fixed;">
+                        <colgroup>
+                            <col style="width: 32%;">
+                            <col style="width: 13%;">
+                            <col style="width: 12%;">
+                            <col style="width: 12%;">
+                            <col style="width: 14%;">
+                            <col style="width: 17%;">
+                            <col class="no-print" style="width: 0%;">
+                        </colgroup>
+                        <thead>
+                            <tr class="border-b border-slate-200 text-xs font-semibold text-slate-500 bg-slate-50">
+                                <th class="py-2 px-2">材料名</th>
+                                <th class="py-2 px-2">ボトル価格</th>
+                                <th class="py-2 px-2">容量</th>
+                                <th class="py-2 px-2">使用量</th>
+                                <th class="py-2 px-2 text-center">作れる杯数</th>
+                                <th class="py-2 px-2 text-right">1杯の原価</th>
+                                <th class="py-2 px-2 text-center no-print">並替/削除</th>
+                            </tr>
+                        </thead>
+                        <tbody id="materialTableBody" class="divide-y divide-slate-100 text-sm">
+                            <!-- JSで動的生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3 text-right text-sm font-bold text-slate-700">
+                    材料費合計（1杯あたり）: <span id="totalMaterialCost" class="text-indigo-600">0</span> 円
+                </div>
+            </div>
+
+            <!-- その他経費入力セクション -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2">
+                        <span class="w-2 h-6 bg-indigo-600 rounded-full"></span>
+                        その他費用（氷代・カットレモン・グラス代など）
+                    </h2>
+                    <button onclick="addExpenseRow()" class="no-print bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        費用を追加
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-xs font-semibold text-slate-500 bg-slate-50">
+                                <th class="py-2 px-2">項目名</th>
+                                <th class="py-2 px-2 w-36 text-right">金額 (円)</th>
+                                <th class="py-2 px-2 w-16 text-center no-print">並替/削除</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenseTableBody" class="divide-y divide-slate-100 text-sm">
+                            <!-- JSで動的生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3 text-right text-sm font-bold text-slate-700">
+                    その他費用合計: <span id="totalExpenseCost" class="text-indigo-600">0</span> 円
+                </div>
+            </div>
+
+            <!-- メモ欄 -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-700 mb-2 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-indigo-600 rounded-full"></span>
+                    メモ欄（レシピ・作り方・注意点など）
+                </h2>
+                <textarea id="memoInput" rows="3" placeholder="例: グラスに氷を満たし、ジン45mlを注いでトニックウォーターでアップ。ライムを添える。" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm" oninput="autoResizeMemo(this); saveToLocalStorage();"></textarea>
+            </div>
+
+        </div>
+
+        <!-- 右側：分析・販売価格シミュレーションセクション (5カラム) -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- 原価サマリーカード -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 text-white p-6 rounded-xl shadow-md">
+                <h2 class="text-xs uppercase tracking-wider text-slate-400 font-bold mb-1">原価サマリー（1杯あたり）</h2>
+                <div class="flex justify-between items-baseline mb-4">
+                    <span class="text-3xl font-extrabold text-white" id="unitCostDisplay">0 円</span>
+                    <span class="text-xs text-slate-300">総原価: <span id="totalCostDisplay">0</span> 円</span>
+                </div>
+                <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-700 text-sm">
+                    <div>
+                        <div class="text-slate-400 text-xs">材料費比率</div>
+                        <div class="font-semibold text-lg" id="materialRatioDisplay">0%</div>
+                    </div>
+                    <div>
+                        <div class="text-slate-400 text-xs">その他費比率</div>
+                        <div class="font-semibold text-lg" id="expenseRatioDisplay">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 販売価格シミュレーション -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-700 mb-3 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-emerald-600 rounded-full"></span>
+                    販売価格・利益シミュレーション
+                </h2>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-600 mb-1">提供価格（メニュー価格）</label>
+                    <div class="relative">
+                        <input type="number" id="sellingPrice" value="800" min="0" class="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold text-lg text-emerald-700" oninput="calculate(); saveToLocalStorage();">
+                        <span class="absolute left-3 top-2.5 text-slate-400 font-bold">¥</span>
+                    </div>
+                </div>
+
+                <!-- 利益詳細グリッド -->
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                        <div class="text-xs text-emerald-800 font-medium">粗利益（1杯あたり）</div>
+                        <div class="text-xl font-extrabold text-emerald-700" id="grossProfitDisplay">0 円</div>
+                    </div>
+                    <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                        <div class="text-xs text-emerald-800 font-medium">粗利益率 (Margin)</div>
+                        <div class="text-xl font-extrabold text-emerald-700" id="grossMarginDisplay">0%</div>
+                    </div>
+                </div>
+
+                <div class="space-y-2 text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div class="flex justify-between">
+                        <span>原価率 (Food/Drink Cost %):</span>
+                        <span class="font-bold text-slate-700" id="costRatioDisplay">0%</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>マークアップ率:</span>
+                        <span class="font-bold text-slate-700" id="markupDisplay">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 目標利益からの逆算シミュレーター -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-700 mb-3 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-amber-500 rounded-full"></span>
+                    目標利益率から価格を逆算
+                </h2>
+                
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-sm font-medium text-slate-600">目標粗利益率</label>
+                            <span class="text-sm font-bold text-amber-600"><span id="targetMarginValue">75</span>%</span>
+                        </div>
+                        <!-- シークバー（スライダー） -->
+                        <input type="range" id="targetMarginRange" min="0" max="95" step="1" value="75" class="w-full accent-amber-500 cursor-pointer mb-2" oninput="onRangeInput(this.value)">
+                        
+                        <div class="grid grid-cols-4 gap-2 mb-2 no-print">
+                            <button onclick="setTargetMargin(70)" class="py-1 text-xs bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 rounded border border-slate-200 font-medium transition">70%</button>
+                            <button onclick="setTargetMargin(75)" class="py-1 text-xs bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 rounded border border-slate-200 font-medium transition">75%</button>
+                            <button onclick="setTargetMargin(80)" class="py-1 text-xs bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 rounded border border-slate-200 font-medium transition">80%</button>
+                            <button onclick="setTargetMargin(85)" class="py-1 text-xs bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 rounded border border-slate-200 font-medium transition">85%</button>
+                        </div>
+                        <div class="flex items-center gap-2 hidden">
+                            <input type="number" id="targetMarginInput" value="75" min="0" max="99" class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm" oninput="calculateTargetPrice()">
+                            <span class="text-sm font-medium text-slate-600">%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 flex justify-between items-center">
+                        <div>
+                            <div class="text-xs text-amber-800 font-medium">推奨メニュー価格</div>
+                            <div class="text-xs text-amber-600">目標利益率を達成する価格</div>
+                        </div>
+                        <div class="text-xl font-extrabold text-amber-700" id="recommendedPriceDisplay">0 円</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 原価構成比グラフ -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 no-print">
+                <h2 class="text-lg font-bold text-slate-700 mb-3 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-indigo-600 rounded-full"></span>
+                    コスト構成比
+                </h2>
+                <div class="relative w-full h-48 flex justify-center items-center">
+                    <canvas id="costChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- フッター -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 mt-auto no-print">
+        カクテル原価・利益分析ツール &copy; 2026
+    </footer>
+
+    <!-- スクリプト -->
+    <script>
+        let materialRows = [
+            { name: "ジン (ゴードン等)", price: 1800, capacity: 750, usage: 45 },
+            { name: "トニックウォーター", price: 100, capacity: 200, usage: 150 },
+            { name: "ライム (1個換算)", price: 60, capacity: 1, usage: 0.25 }
+        ];
+
+        let expenseRows = [
+            { name: "氷代 (2kgで15杯計算)", price: 25 },
+            { name: "ストロー・ナプキン", price: 5 }
+        ];
+
+        let costChart = null;
+
+        // 初期化
+        window.onload = function() {
+            loadFromLocalStorage();
+            renderMaterialTable();
+            renderExpenseTable();
+            initChart();
+            calculate();
+            autoResizeMemo(document.getElementById('memoInput'));
+        };
+
+        function autoResizeMemo(el) {
+            if (!el) return;
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight + 4) + 'px';
+        }
+
+        // ローカルストレージ保存・読み込み
+        function saveToLocalStorage() {
+            const data = {
+                productName: document.getElementById('productName').value,
+                batchSize: document.getElementById('batchSize').value,
+                sellingPrice: document.getElementById('sellingPrice').value,
+                targetMargin: document.getElementById('targetMarginRange').value,
+                memo: document.getElementById('memoInput').value,
+                materialRows: materialRows,
+                expenseRows: expenseRows
+            };
+            localStorage.setItem('cocktail_cost_data', JSON.stringify(data));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('cocktail_cost_data');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if (data.productName !== undefined) document.getElementById('productName').value = data.productName;
+                    if (data.batchSize !== undefined) document.getElementById('batchSize').value = data.batchSize;
+                    if (data.sellingPrice !== undefined) document.getElementById('sellingPrice').value = data.sellingPrice;
+                    if (data.targetMargin !== undefined) {
+                        document.getElementById('targetMarginRange').value = data.targetMargin;
+                        document.getElementById('targetMarginValue').textContent = data.targetMargin;
+                        let inputEl = document.getElementById('targetMarginInput');
+                        if(inputEl) inputEl.value = data.targetMargin;
+                    }
+                    if (data.memo !== undefined) {
+                        document.getElementById('memoInput').value = data.memo;
+                    }
+                    if (data.materialRows) materialRows = data.materialRows;
+                    if (data.expenseRows) expenseRows = data.expenseRows;
+                } catch (e) {
+                    console.error("Failed to load saved data", e);
+                }
+            }
+        }
+
+        // JSON エクスポート
+        function exportData() {
+            const data = {
+                productName: document.getElementById('productName').value,
+                batchSize: document.getElementById('batchSize').value,
+                sellingPrice: document.getElementById('sellingPrice').value,
+                targetMargin: document.getElementById('targetMarginRange').value,
+                memo: document.getElementById('memoInput').value,
+                materialRows: materialRows,
+                expenseRows: expenseRows
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (data.productName || 'cocktail') + '_cost_analysis.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // JSON インポート
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.productName !== undefined) document.getElementById('productName').value = data.productName;
+                    if (data.batchSize !== undefined) document.getElementById('batchSize').value = data.batchSize;
+                    if (data.sellingPrice !== undefined) document.getElementById('sellingPrice').value = data.sellingPrice;
+                    if (data.targetMargin !== undefined) {
+                        document.getElementById('targetMarginRange').value = data.targetMargin;
+                        document.getElementById('targetMarginValue').textContent = data.targetMargin;
+                        let inputEl = document.getElementById('targetMarginInput');
+                        if(inputEl) inputEl.value = data.targetMargin;
+                    }
+                    if (data.memo !== undefined) {
+                        document.getElementById('memoInput').value = data.memo;
+                        autoResizeMemo(document.getElementById('memoInput'));
+                    }
+                    if (data.materialRows) materialRows = data.materialRows;
+                    if (data.expenseRows) expenseRows = data.expenseRows;
+                    
+                    renderMaterialTable();
+                    renderExpenseTable();
+                    calculate();
+                    saveToLocalStorage();
+                    alert('データを正常に読み込みました！');
+                } catch (err) {
+                    alert('ファイルの読み込みに失敗しました。正しいJSONファイルを選択してください。');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset
+        }
+
+        // 材料テーブル描画
+        function renderMaterialTable() {
+            const tbody = document.getElementById('materialTableBody');
+            tbody.innerHTML = '';
+            materialRows.forEach((row, index) => {
+                let cupsPerBottle = 0;
+                let unitPrice = 0;
+
+                if (row.capacity > 0 && row.usage > 0) {
+                    cupsPerBottle = row.capacity / row.usage;
+                    unitPrice = row.price / cupsPerBottle;
+                }
+
+                const upDisabled = index === 0 ? 'disabled opacity-30 cursor-not-allowed' : '';
+                const downDisabled = index === materialRows.length - 1 ? 'disabled opacity-30 cursor-not-allowed' : '';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="py-2 px-2"><input type="text" value="${escapeHtml(row.name)}" oninput="updateMaterialValue(${index}, 'name', this.value)" class="w-full px-2 py-1 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none"></td>
+                    <td class="py-2 px-2"><input type="number" value="${row.price}" min="0" oninput="updateMaterialValue(${index}, 'price', this.value)" class="w-full px-2 py-1 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none"></td>
+                    <td class="py-2 px-2"><input type="number" value="${row.capacity}" min="0" step="any" oninput="updateMaterialValue(${index}, 'capacity', this.value)" class="w-full px-2 py-1 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none"></td>
+                    <td class="py-2 px-2"><input type="number" value="${row.usage}" min="0" step="any" oninput="updateMaterialValue(${index}, 'usage', this.value)" class="w-full px-2 py-1 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none"></td>
+                    <td class="py-2 px-2 text-center font-medium text-indigo-600 text-xs" id="cups_${index}">${cupsPerBottle > 0 ? cupsPerBottle.toFixed(1) + ' 杯' : '-'}</td>
+                    <td class="py-2 px-2 text-right font-bold text-slate-700" id="unitprice_${index}">${Math.round(unitPrice * 10) / 10} 円</td>
+                    <td class="py-2 px-2 text-center no-print whitespace-nowrap">
+                        <div class="inline-flex items-center gap-1">
+                            <button onclick="moveMaterial(${index}, -1)" ${upDisabled} class="p-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition text-xs" title="上へ">▲</button>
+                            <button onclick="moveMaterial(${index}, 1)" ${downDisabled} class="p-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition text-xs" title="下へ">▼</button>
+                            <button onclick="removeMaterialRow(${index})" class="p-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded transition text-xs ml-1" title="削除">×</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 経費テーブル描画
+        function renderExpenseTable() {
+            const tbody = document.getElementById('expenseTableBody');
+            tbody.innerHTML = '';
+            expenseRows.forEach((row, index) => {
+                const upDisabled = index === 0 ? 'disabled opacity-30 cursor-not-allowed' : '';
+                const downDisabled = index === expenseRows.length - 1 ? 'disabled opacity-30 cursor-not-allowed' : '';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="py-2 px-2"><input type="text" value="${escapeHtml(row.name)}" oninput="updateExpenseValue(${index}, 'name', this.value)" class="w-full px-2 py-1 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none"></td>
+                    <td class="py-2 px-2 text-right"><input type="number" value="${row.price}" min="0" oninput="updateExpenseValue(${index}, 'price', this.value)" class="w-full px-2 py-1 border border-slate-200 rounded text-sm text-right focus:ring-1 focus:ring-indigo-500 focus:outline-none"></td>
+                    <td class="py-2 px-2 text-center no-print whitespace-nowrap">
+                        <div class="inline-flex items-center gap-1 justify-center w-full">
+                            <button onclick="moveExpense(${index}, -1)" ${upDisabled} class="p-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition text-xs" title="上へ">▲</button>
+                            <button onclick="moveExpense(${index}, 1)" ${downDisabled} class="p-1 bg-slate-100 hover:bg-slate-200 rounded text-slate-600 transition text-xs" title="下へ">▼</button>
+                            <button onclick="removeExpenseRow(${index})" class="p-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded transition text-xs ml-1" title="削除">×</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/"/g, '&quot;');
+        }
+
+        function addMaterialRow() {
+            materialRows.push({ name: "新しい材料/リキュール", price: 2000, capacity: 700, usage: 30 });
+            renderMaterialTable();
+            calculate();
+            saveToLocalStorage();
+        }
+
+        function removeMaterialRow(index) {
+            materialRows.splice(index, 1);
+            renderMaterialTable();
+            calculate();
+            saveToLocalStorage();
+        }
+
+        function moveMaterial(index, direction) {
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= materialRows.length) return;
+            const temp = materialRows[index];
+            materialRows[index] = materialRows[targetIndex];
+            materialRows[targetIndex] = temp;
+            renderMaterialTable();
+            calculate();
+            saveToLocalStorage();
+        }
+
+        function updateMaterialValue(index, field, value) {
+            materialRows[index][field] = field === 'name' ? value : parseFloat(value) || 0;
+            
+            let row = materialRows[index];
+            let cupsPerBottle = 0;
+            let unitPrice = 0;
+            if (row.capacity > 0 && row.usage > 0) {
+                cupsPerBottle = row.capacity / row.usage;
+                unitPrice = row.price / cupsPerBottle;
+            }
+            const cupsEl = document.getElementById(`cups_${index}`);
+            const priceEl = document.getElementById(`unitprice_${index}`);
+            if (cupsEl) cupsEl.textContent = cupsPerBottle > 0 ? cupsPerBottle.toFixed(1) + ' 杯' : '-';
+            if (priceEl) priceEl.textContent = (Math.round(unitPrice * 10) / 10) + ' 円';
+
+            calculate();
+            saveToLocalStorage();
+        }
+
+        function addExpenseRow() {
+            expenseRows.push({ name: "新しい費用", price: 0 });
+            renderExpenseTable();
+            calculate();
+            saveToLocalStorage();
+        }
+
+        function removeExpenseRow(index) {
+            expenseRows.splice(index, 1);
+            renderExpenseTable();
+            calculate();
+            saveToLocalStorage();
+        }
+
+        function moveExpense(index, direction) {
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= expenseRows.length) return;
+            const temp = expenseRows[index];
+            expenseRows[index] = expenseRows[targetIndex];
+            expenseRows[targetIndex] = temp;
+            renderExpenseTable();
+            calculate();
+            saveToLocalStorage();
+        }
+
+        function updateExpenseValue(index, field, value) {
+            expenseRows[index][field] = field === 'name' ? value : parseFloat(value) || 0;
+            calculate();
+            saveToLocalStorage();
+        }
+
+        function onRangeInput(val) {
+            document.getElementById('targetMarginValue').textContent = val;
+            let inputEl = document.getElementById('targetMarginInput');
+            if (inputEl) inputEl.value = val;
+            calculateTargetPrice();
+            saveToLocalStorage();
+        }
+
+        function setTargetMargin(margin) {
+            document.getElementById('targetMarginRange').value = margin;
+            document.getElementById('targetMarginValue').textContent = margin;
+            let inputEl = document.getElementById('targetMarginInput');
+            if (inputEl) inputEl.value = margin;
+            calculateTargetPrice();
+            saveToLocalStorage();
+        }
+
+        // 計算ロジック
+        function calculate() {
+            const batchSize = Math.max(1, parseFloat(document.getElementById('batchSize').value) || 1);
+            
+            // 材料費合計（1杯あたり）
+            let totalMaterial = materialRows.reduce((sum, row) => {
+                if (row.capacity > 0 && row.usage > 0) {
+                    let unitPrice = row.price / (row.capacity / row.usage);
+                    return sum + unitPrice;
+                }
+                return sum;
+            }, 0);
+            
+            // 経費合計
+            let totalExpense = expenseRows.reduce((sum, row) => sum + row.price, 0);
+            
+            let totalCost = totalMaterial + totalExpense;
+            let unitCost = totalCost / batchSize;
+
+            let materialPerUnit = totalMaterial / batchSize;
+            let expensePerUnit = totalExpense / batchSize;
+
+            // 表示更新
+            document.getElementById('totalMaterialCost').textContent = Math.round(totalMaterial).toLocaleString();
+            document.getElementById('totalExpenseCost').textContent = Math.round(totalExpense).toLocaleString();
+            document.getElementById('totalCostDisplay').textContent = Math.round(totalCost).toLocaleString();
+            document.getElementById('unitCostDisplay').textContent = Math.round(unitCost).toLocaleString() + " 円";
+
+            let materialRatio = totalCost > 0 ? (materialPerUnit / unitCost) * 100 : 0;
+            let expenseRatio = totalCost > 0 ? (expensePerUnit / unitCost) * 100 : 0;
+
+            document.getElementById('materialRatioDisplay').textContent = materialRatio.toFixed(1) + "%";
+            document.getElementById('expenseRatioDisplay').textContent = expenseRatio.toFixed(1) + "%";
+
+            // 販売価格シミュレーション
+            const sellingPrice = parseFloat(document.getElementById('sellingPrice').value) || 0;
+            let grossProfit = sellingPrice - unitCost;
+            let grossMargin = sellingPrice > 0 ? (grossProfit / sellingPrice) * 100 : 0;
+            let costRatio = sellingPrice > 0 ? (unitCost / sellingPrice) * 100 : 0;
+            let markup = unitCost > 0 ? (grossProfit / unitCost) * 100 : 0;
+
+            document.getElementById('grossProfitDisplay').textContent = Math.round(grossProfit).toLocaleString() + " 円";
+            document.getElementById('grossMarginDisplay').textContent = grossMargin.toFixed(1) + "%";
+            document.getElementById('costRatioDisplay').textContent = costRatio.toFixed(1) + "%";
+            document.getElementById('markupDisplay').textContent = markup.toFixed(1) + "%";
+
+            // グラフ更新
+            updateChart(materialPerUnit, expensePerUnit);
+            calculateTargetPrice();
+        }
+
+        function calculateTargetPrice() {
+            const batchSize = Math.max(1, parseFloat(document.getElementById('batchSize').value) || 1);
+            let totalMaterial = materialRows.reduce((sum, row) => {
+                if (row.capacity > 0 && row.usage > 0) {
+                    return sum + (row.price / (row.capacity / row.usage));
+                }
+                return sum;
+            }, 0);
+            let totalExpense = expenseRows.reduce((sum, row) => sum + row.price, 0);
+            let unitCost = (totalMaterial + totalExpense) / batchSize;
+
+            const targetMargin = parseFloat(document.getElementById('targetMarginRange').value) || 0;
+            
+            if (targetMargin >= 100) {
+                document.getElementById('recommendedPriceDisplay').textContent = "計算不可 (>=100%)";
+                return;
+            }
+
+            // 推奨販売価格 = 原価 / (1 - 目標粗利益率)
+            let recommendedPrice = unitCost / (1 - (targetMargin / 100));
+            document.getElementById('recommendedPriceDisplay').textContent = Math.round(recommendedPrice).toLocaleString() + " 円";
+        }
+
+        // Chart.js 初期化・更新
+        function initChart() {
+            const ctx = document.getElementById('costChart').getContext('2d');
+            costChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['材料費', 'その他費用'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: ['#6366f1', '#cbd5e1'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 12 }
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        (function() {
+            let div = document.createElement('input');
+            div.type = 'hidden';
+            div.id = 'targetMarginInput';
+            document.body.appendChild(div);
+        })();
+
+        function updateChart(material, expense) {
+            if (!costChart) return;
+            costChart.data.datasets[0].data = [material, expense];
+            costChart.update();
+        }
+    </script>
+</body>
+</html>

@@ -26,6 +26,17 @@ export default function Home() {
     }
   };
 
+  const checkInput = () => {
+    if (!codeRef.current) {
+      setAnalysis('入力欄が見つかりません。');
+      return;
+    }
+
+    codeRef.current.focus();
+    const isActive = document.activeElement === codeRef.current;
+    setAnalysis(isActive ? '入力が有効です。テキストエリアにフォーカスしました。' : '入力が無効です。');
+  };
+
   const runCode = async () => {
     setIsRunning(true);
     setOutput('実行中...');
@@ -80,12 +91,20 @@ export default function Home() {
     <main className="min-h-screen bg-slate-950 text-slate-100 p-6">
       <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col gap-6">
         <header className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-8 shadow-2xl shadow-black/20 backdrop-blur-xl">
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h1 className="text-4xl font-bold text-white">Python エディタ</h1>
               <p className="mt-2 max-w-2xl text-slate-400">
                 コード入力、実行結果、エラー解説の 3 画面構成。
               </p>
+            </div>
+            <div>
+              <a
+                href="/base-converter"
+                className="inline-flex items-center justify-center rounded-xl bg-cyan-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-cyan-700 transition"
+              >
+                基数変換 & タイムアタックへ ↗
+              </a>
             </div>
           </div>
         </header>
@@ -100,6 +119,9 @@ export default function Home() {
               <div className="flex flex-wrap items-center gap-3">
                 <Button variant="secondary" className="rounded-lg px-3 py-2 text-xs" onClick={copyAll}>
                   全てコピー
+                </Button>
+                <Button variant="secondary" className="rounded-lg px-3 py-2 text-xs" onClick={checkInput}>
+                  入力確認
                 </Button>
                 <Button onClick={runCode} disabled={isRunning}>
                   {isRunning ? '実行中…' : '実行'}

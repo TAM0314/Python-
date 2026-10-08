@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>セルオートマトン交通流・渋滞解消シミュレータ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <!-- ヘッダー -->
+        <header class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <span class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Nagel-Schreckenberg Model</span>
+                <h1 class="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 mt-2 mb-1 whitespace-nowrap">
+                    🚗 セルオートマトン交通流・渋滞解消シミュレータ
+                </h1>
+                <p class="text-slate-600 text-sm">
+                    車の発進・加速・減速ルールから生まれる「自然渋滞」の発生メカニズムと解消策を検証するインタラクティブツールです。
+                </p>
+            </div>
+            <div class="flex flex-nowrap gap-2 shrink-0">
+                <button onclick="loadPreset('normal')" class="px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition whitespace-nowrap">通常交通</button>
+                <button onclick="loadPreset('bottleneck')" class="px-3 sm:px-4 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold text-xs rounded-xl transition whitespace-nowrap">ボトルネック</button>
+                <button onclick="loadPreset('av')" class="px-3 sm:px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-xs rounded-xl transition whitespace-nowrap">自動運転混入</button>
+            </div>
+        </header>
+
+        <!-- メイングリッド -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- コントロールパネル -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 space-y-5">
+                <h2 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">⚙️ シミュレーション設定</h2>
+
+                <div>
+                    <div class="flex justify-between text-sm mb-1 font-semibold">
+                        <span class="text-slate-600">車両密度 (Density)</span>
+                        <span id="val-density" class="text-blue-600">0.25</span>
+                    </div>
+                    <input type="range" id="input-density" min="0.05" max="0.7" step="0.02" value="0.25" class="w-full accent-blue-600" oninput="updateParam('density')">
+                    <p class="text-xs text-slate-400 mt-1">道路上の車占有率（高いほど渋滞しやすい）</p>
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-sm mb-1 font-semibold">
+                        <span class="text-slate-600">最高速度 (Vmax)</span>
+                        <span id="val-vmax" class="text-blue-600">5</span>
+                    </div>
+                    <input type="range" id="input-vmax" min="2" max="10" step="1" value="5" class="w-full accent-blue-600" oninput="updateParam('vmax')">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-sm mb-1 font-semibold">
+                        <span class="text-slate-600">ランダム減速確率 (p)</span>
+                        <span id="val-p" class="text-blue-600">0.3</span>
+                    </div>
+                    <input type="range" id="input-p" min="0" max="1" step="0.05" value="0.3" class="w-full accent-blue-600" oninput="updateParam('p')">
+                    <p class="text-xs text-slate-400 mt-1">運転者の気まぐれ・ブレーキ遅れの確率</p>
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-sm mb-1 font-semibold">
+                        <span class="text-slate-600">自動運転車 (AV) 割合</span>
+                        <span id="val-av" class="text-emerald-600">0%</span>
+                    </div>
+                    <input type="range" id="input-av" min="0" max="1" step="0.05" value="0" class="w-full accent-emerald-600" oninput="updateParam('av')">
+                    <p class="text-xs text-slate-400 mt-1">ランダム減速(p)がほぼ0になる自動運転車</p>
+                </div>
+
+                <div class="pt-2 border-t border-slate-100 space-y-3">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm font-semibold text-slate-700">⚠️ ボトルネック（複数配置可）</span>
+                            <button onclick="clearBottlenecks()" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition">全クリア</button>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            下の<strong>「道路リアルタイムビュー」をクリック</strong>すると、任意の場所に何度でもボトルネック（絞り込み区間）を追加・削除できます。
+                        </p>
+                    </div>
+                    <div class="space-y-2 pt-2 border-t border-slate-100">
+                        <label class="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
+                            <input type="checkbox" id="input-trafficlight" class="w-4 h-4 accent-blue-600 rounded" onchange="toggleTrafficLight()">
+                            <span>定期的な赤信号（信号待ち）を設置</span>
+                        </label>
+                        <div id="trafficlight-settings" class="hidden pl-6 space-y-2 pt-1 text-xs text-slate-600">
+                            <div class="flex items-center justify-between">
+                                <span>青信号の長さ (ステップ):</span>
+                                <input type="number" id="input-green-duration" value="40" min="10" max="200" class="w-20 px-2 py-1 bg-slate-100 border border-slate-200 rounded-lg text-right font-bold">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>赤信号の長さ (ステップ):</span>
+                                <input type="number" id="input-red-duration" value="30" min="5" max="200" class="w-20 px-2 py-1 bg-slate-100 border border-slate-200 rounded-lg text-right font-bold">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 実行ボタン -->
+                <div class="flex gap-2 pt-2">
+                    <button id="btn-toggle" onclick="toggleRun()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl shadow-md transition flex items-center justify-center gap-2">
+                        <span>▶️</span> <span id="btn-toggle-text">開始</span>
+                    </button>
+                    <button onclick="stepSimulation()" class="px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-2xl transition" title="1ステップ進む">
+                        ⏭️
+                    </button>
+                    <button onclick="resetSimulation()" class="px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-2xl transition" title="リセット">
+                        🔄
+                    </button>
+                </div>
+
+                <!-- 統計情報 -->
+                <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">平均速度:</span>
+                        <span id="stat-speed" class="font-bold text-slate-800">0.0 / 5.0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">交通流量 (Flow):</span>
+                        <span id="stat-flow" class="font-bold text-slate-800">0 台/step</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">渋滞車両割合 (v=0):</span>
+                        <span id="stat-jam" class="font-bold text-red-600">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ビジュアライゼーションエリア -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- 道路ビュー -->
+                <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center justify-between">
+                        <span>🛣️ 道路リアルタイムビュー</span>
+                        <span class="text-xs font-normal text-slate-400">左から右へ進行 (環状道路)</span>
+                    </h2>
+                    
+                    <div class="overflow-x-auto pb-2">
+                        <canvas id="roadCanvas" height="90" class="w-full bg-slate-900 rounded-2xl shadow-inner min-w-[600px]"></canvas>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-center gap-6 mt-4 text-xs font-semibold text-slate-600">
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500 rounded-full"></span> 停止車 (v=0)</div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 bg-amber-500 rounded-full"></span> 低速車</div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 bg-emerald-500 rounded-full"></span> 高速車</div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 bg-cyan-400 rounded-full"></span> 自動運転車(AV)</div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 bg-orange-500 rounded-full"></span> ボトルネック / 信号</div>
+                    </div>
+                </div>
+
+                <!-- 時空間図 (Space-Time Diagram) -->
+                <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-bold text-slate-900 mb-2">📊 時空間図（車の足あと・タイムラプス）</h2>
+                    <p class="text-xs text-slate-500 mb-3">
+                        横軸は「道路のどのあたりか」、縦軸は「時間の経過（上から下へ進む）」を表しています。
+                        車がスムーズに進むと右下がり（右斜め下）の線になり、<strong>車が止まって渋滞すると「左下がり（左斜め下）の赤い帯」として浮き上がります！</strong>
+                    </p>
+
+                    <div class="bg-blue-50/50 rounded-2xl p-3 mb-4 border border-blue-100 text-xs text-slate-700 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">💡</span>
+                            <span><strong>ここを見るポイント：</strong> 赤いかたまりが左下がり（左斜め下）に逆行していく様子（ストップ＆ゴーの波）が見えたら、それが「自然渋滞」の正体だよ！</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col items-center">
+                        <div class="text-xs font-semibold text-slate-400 mb-1">↑ 時間の経過 (古い → 新しい)</div>
+                        <div class="flex items-center gap-2 w-full justify-center">
+                            <span class="text-xs text-slate-400 -rotate-90 sm:rotate-0">スタート側</span>
+                            <canvas id="spacetimeCanvas" width="600" height="250" class="bg-slate-900 rounded-2xl border border-slate-800 shadow-inner max-w-full"></canvas>
+                            <span class="text-xs text-slate-400">ゴール側</span>
+                        </div>
+                        <div class="text-xs font-semibold text-slate-400 mt-1">道路の位置 (左：スタート → 右：ゴール)</div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        // シミュレーションパラメータ
+        const roadLength = 200; // セル数
+        let vmax = 5;
+        let p = 0.3;
+        let density = 0.25;
+        let avRatio = 0.0;
+        let bottlenecks = new Set();
+        let useTrafficLight = false;
+
+        let road = new Array(roadLength).fill(-1); // -1: 空き, 0以上: 速度 (bit 7: AVフラグ)
+        let isRunning = false;
+        let animationId = null;
+        let stepCount = 0;
+
+        // 時空間図用バッファ
+        const spacetimeHistory = [];
+        const maxHistoryRows = 120;
+
+        const roadCanvas = document.getElementById('roadCanvas');
+        const roadCtx = roadCanvas.getContext('2d');
+        const stCanvas = document.getElementById('spacetimeCanvas');
+        const stCtx = stCanvas.getContext('2d');
+
+        function initSimulation() {
+            road = new Array(roadLength).fill(-1);
+            let numCars = Math.floor(roadLength * density);
+            let placed = 0;
+            
+            // ランダムに車を配置
+            while (placed < numCars) {
+                let pos = Math.floor(Math.random() * roadLength);
+                if (road[pos] === -1) {
+                    let v = Math.floor(Math.random() * (vmax + 1));
+                    let isAV = Math.random() < avRatio ? 128 : 0;
+                    road[pos] = v | isAV;
+                    placed++;
+                }
+            }
+            stepCount = 0;
+            spacetimeHistory.length = 0;
+            updateStats();
+            drawRoad();
+            drawSpacetime();
+        }
+
+        function updateParam(type) {
+            if (type === 'density') {
+                density = parseFloat(document.getElementById('input-density').value);
+                document.getElementById('val-density').innerText = density.toFixed(2);
+                initSimulation();
+            } else if (type === 'vmax') {
+                vmax = parseInt(document.getElementById('input-vmax').value);
+                document.getElementById('val-vmax').innerText = vmax;
+            } else if (type === 'p') {
+                p = parseFloat(document.getElementById('input-p').value);
+                document.getElementById('val-p').innerText = p.toFixed(2);
+            } else if (type === 'av') {
+                avRatio = parseFloat(document.getElementById('input-av').value);
+                document.getElementById('val-av').innerText = Math.round(avRatio * 100) + '%';
+                initSimulation();
+            }
+        }
+
+        function clearBottlenecks() {
+            bottlenecks.clear();
+            drawRoad();
+        }
+
+        function toggleTrafficLight() {
+            useTrafficLight = document.getElementById('input-trafficlight').checked;
+            const settings = document.getElementById('trafficlight-settings');
+            if (useTrafficLight) {
+                settings.classList.remove('hidden');
+            } else {
+                settings.classList.add('hidden');
+            }
+        }
+
+        // 道路クリックでボトルネックの追加/削除
+        roadCanvas.addEventListener('click', (e) => {
+            const rect = roadCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const clickedPos = Math.floor((x / roadCanvas.clientWidth) * roadLength);
+            
+            // 周辺5セルを対象にする
+            let isAnySet = false;
+            for (let offset = -2; offset <= 2; offset++) {
+                let p = (clickedPos + offset + roadLength) % roadLength;
+                if (bottlenecks.has(p)) isAnySet = true;
+            }
+            for (let offset = -2; offset <= 2; offset++) {
+                let p = (clickedPos + offset + roadLength) % roadLength;
+                if (isAnySet) {
+                    bottlenecks.delete(p);
+                } else {
+                    bottlenecks.add(p);
+                }
+            }
+            drawRoad();
+        });
+
+        function stepSimulation() {
+            let newRoad = new Array(roadLength).fill(-1);
+            let totalSpeed = 0;
+            let carCount = 0;
+            let stoppedCount = 0;
+
+            // 信号の状態（設定された青・赤のステップ数に基づく）
+            let greenDuration = parseInt(document.getElementById('input-green-duration').value) || 40;
+            let redDuration = parseInt(document.getElementById('input-red-duration').value) || 30;
+            let cycleTime = greenDuration + redDuration;
+            let modStep = stepCount % cycleTime;
+            let redLight = useTrafficLight && (modStep >= greenDuration);
+            let lightPos = Math.floor(roadLength * 0.7);
+
+            for (let i = 0; i < roadLength; i++) {
+                let cell = road[i];
+                if (cell !== -1) {
+                    carCount++;
+                    let isAV = (cell & 128) !== 0;
+                    let v = cell & 127;
+
+                    // 1. 加速
+                    if (v < vmax) v++;
+
+                    // 2. 前方車との車間距離計算
+                    let d = 0;
+                    while (d <= v) {
+                        let checkPos = (i + d + 1) % roadLength;
+                        if (road[checkPos] !== -1) break;
+                        d++;
+                    }
+                    v = Math.min(v, d);
+
+                    // 3. ボトルネック効果（複数の任意の場所で最高速度が一時的に低下）
+                    if (bottlenecks.has(i)) {
+                        v = Math.min(v, 1);
+                    }
+
+                    // 3.5 信号効果
+                    if (useTrafficLight && redLight && i < lightPos && (lightPos - i) <= v) {
+                        v = Math.min(v, lightPos - i - 1);
+                        if (v < 0) v = 0;
+                    }
+
+                    // 4. ランダム減速 (AVは確率を大幅に低減またはゼロに)
+                    let currentP = isAV ? p * 0.1 : p;
+                    if (Math.random() < currentP && v > 0) {
+                        v--;
+                    }
+
+                    totalSpeed += v;
+                    if (v === 0) stoppedCount++;
+
+                    let nextPos = (i + v) % roadLength;
+                    newRoad[nextPos] = v | (isAV ? 128 : 0);
+                }
+            }
+
+            road = newRoad;
+            stepCount++;
+
+            // 時空間図に記録
+            spacetimeHistory.push([...road]);
+            if (spacetimeHistory.length > maxHistoryRows) {
+                spacetimeHistory.shift();
+            }
+
+            updateStats(totalSpeed, carCount, stoppedCount);
+            drawRoad(redLight, lightPos);
+            drawSpacetime();
+        }
+
+        function updateStats(totalSpeed = 0, carCount = 0, stoppedCount = 0) {
+            if (carCount === 0) {
+                // 初期状態計算
+                carCount = road.filter(c => c !== -1).length;
+                totalSpeed = road.filter(c => c !== -1).reduce((acc, c) => acc + (c & 127), 0);
+                stoppedCount = road.filter(c => c !== -1 && (c & 127) === 0).length;
+            }
+            let avgSpd = carCount > 0 ? (totalSpeed / carCount).toFixed(1) : '0.0';
+            document.getElementById('stat-speed').innerText = `${avgSpd} / ${vmax}`;
+            document.getElementById('stat-flow').innerText = `${totalSpeed} 台/step`;
+            let jamRate = carCount > 0 ? Math.round((stoppedCount / carCount) * 100) : 0;
+            document.getElementById('stat-jam').innerText = `${jamRate}%`;
+        }
+
+        function drawRoad(redLight = false, lightPos = 0) {
+            roadCanvas.width = roadCanvas.clientWidth;
+            roadCanvas.height = 90;
+            const w = roadCanvas.width;
+            const h = roadCanvas.height;
+            const cellWidth = w / roadLength;
+
+            roadCtx.clearRect(0, 0, w, h);
+
+            // 道路の背景（センターライン等）
+            roadCtx.fillStyle = '#1e293b';
+            roadCtx.fillRect(0, 20, w, 50);
+            roadCtx.strokeStyle = '#475569';
+            roadCtx.setLineDash([4, 4]);
+            roadCtx.beginPath();
+            roadCtx.moveTo(0, 45);
+            roadCtx.lineTo(w, 45);
+            roadCtx.stroke();
+            roadCtx.setLineDash([]);
+
+            // ボトルネック表示
+            roadCtx.fillStyle = 'rgba(249, 115, 22, 0.4)';
+            bottlenecks.forEach(i => {
+                let x = i * cellWidth;
+                roadCtx.fillRect(x, 20, Math.max(cellWidth, 1), 50);
+            });
+            if (bottlenecks.size > 0) {
+                roadCtx.fillStyle = '#f97316';
+                roadCtx.font = '10px sans-serif';
+                roadCtx.fillText(`⚠️ ボトルネック設置中 (${bottlenecks.size}箇所)`, 10, 15);
+            }
+
+            // 信号表示
+            if (useTrafficLight) {
+                let lx = lightPos * cellWidth;
+                roadCtx.fillStyle = redLight ? '#ef4444' : '#22c55e';
+                roadCtx.fillRect(lx - 2, 10, 4, 70);
+                roadCtx.font = '10px sans-serif';
+                roadCtx.fillText(redLight ? '🔴 赤信号' : '🟢 青信号', lx - 15, 12);
+            }
+
+            // 車の描画
+            for (let i = 0; i < roadLength; i++) {
+                let cell = road[i];
+                if (cell !== -1) {
+                    let isAV = (cell & 128) !== 0;
+                    let v = cell & 127;
+                    let x = i * cellWidth;
+
+                    if (isAV) {
+                        roadCtx.fillStyle = '#22d3ee'; // シアン (AV)
+                    } else if (v === 0) {
+                        roadCtx.fillStyle = '#ef4444'; // 赤 (停止)
+                    } else if (v < vmax / 2) {
+                        roadCtx.fillStyle = '#f59e0b'; // 黄・オレンジ (低速)
+                    } else {
+                        roadCtx.fillStyle = '#10b981'; // 緑 (高速)
+                    }
+
+                    roadCtx.fillRect(x + 1, 28, Math.max(cellWidth - 2, 2), 34);
+                }
+            }
+        }
+
+        function drawSpacetime() {
+            stCanvas.width = stCanvas.clientWidth;
+            stCanvas.height = 250;
+            const w = stCanvas.width;
+            const h = stCanvas.height;
+            stCtx.clearRect(0, 0, w, h);
+
+            let rows = spacetimeHistory.length;
+            if (rows === 0) return;
+
+            let cellH = h / maxHistoryRows;
+            let cellW = w / roadLength;
+
+            for (let r = 0; r < rows; r++) {
+                let rowData = spacetimeHistory[r];
+                let y = r * cellH;
+                for (let i = 0; i < roadLength; i++) {
+                    let cell = rowData[i];
+                    if (cell !== -1) {
+                        let isAV = (cell & 128) !== 0;
+                        let v = cell & 127;
+                        let x = i * cellW;
+
+                        if (isAV) stCtx.fillStyle = '#22d3ee';
+                        else if (v === 0) stCtx.fillStyle = '#ef4444';
+                        else stCtx.fillStyle = '#3b82f6';
+
+                        stCtx.fillRect(x, y, Math.max(cellW, 1), Math.max(cellH, 1));
+                    }
+                }
+            }
+        }
+
+        function toggleRun() {
+            isRunning = !isRunning;
+            const btnText = document.getElementById('btn-toggle-text');
+            const btn = document.getElementById('btn-toggle');
+            if (isRunning) {
+                btnText.innerText = '一時停止';
+                btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                btn.classList.add('bg-amber-600', 'hover:bg-amber-700');
+                loop();
+            } else {
+                btnText.innerText = '開始';
+                btn.classList.remove('bg-amber-600', 'hover:bg-amber-700');
+                btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                cancelAnimationFrame(animationId);
+            }
+        }
+
+        function loop() {
+            if (!isRunning) return;
+            stepSimulation();
+            animationId = requestAnimationFrame(() => {
+                setTimeout(loop, 50); // 速度調整
+            });
+        }
+
+        function resetSimulation() {
+            isRunning = false;
+            document.getElementById('btn-toggle-text').innerText = '開始';
+            const btn = document.getElementById('btn-toggle');
+            btn.classList.remove('bg-amber-600', 'hover:bg-amber-700');
+            btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            cancelAnimationFrame(animationId);
+            initSimulation();
+        }
+
+        function loadPreset(type) {
+            isRunning = false;
+            document.getElementById('btn-toggle-text').innerText = '開始';
+            cancelAnimationFrame(animationId);
+
+            if (type === 'normal') {
+                document.getElementById('input-density').value = 0.2;
+                document.getElementById('input-vmax').value = 5;
+                document.getElementById('input-p').value = 0.2;
+                document.getElementById('input-av').value = 0;
+                document.getElementById('input-trafficlight').checked = false;
+                bottlenecks.clear();
+            } else if (type === 'bottleneck') {
+                document.getElementById('input-density').value = 0.35;
+                document.getElementById('input-vmax').value = 5;
+                document.getElementById('input-p').value = 0.3;
+                document.getElementById('input-av').value = 0;
+                document.getElementById('input-trafficlight').checked = false;
+                bottlenecks.clear();
+                for (let i = 70; i <= 85; i++) bottlenecks.add(i);
+                for (let i = 140; i <= 155; i++) bottlenecks.add(i);
+            } else if (type === 'av') {
+                document.getElementById('input-density').value = 0.35;
+                document.getElementById('input-vmax').value = 5;
+                document.getElementById('input-p').value = 0.3;
+                document.getElementById('input-av').value = 0.4;
+                document.getElementById('input-trafficlight').checked = false;
+                bottlenecks.clear();
+                for (let i = 70; i <= 85; i++) bottlenecks.add(i);
+                for (let i = 140; i <= 155; i++) bottlenecks.add(i);
+            }
+
+            density = parseFloat(document.getElementById('input-density').value);
+            vmax = parseInt(document.getElementById('input-vmax').value);
+            p = parseFloat(document.getElementById('input-p').value);
+            avRatio = parseFloat(document.getElementById('input-av').value);
+            useTrafficLight = document.getElementById('input-trafficlight').checked;
+
+            document.getElementById('val-density').innerText = density.toFixed(2);
+            document.getElementById('val-vmax').innerText = vmax;
+            document.getElementById('val-p').innerText = p.toFixed(2);
+            document.getElementById('val-av').innerText = Math.round(avRatio * 100) + '%';
+
+            initSimulation();
+        }
+
+        // 初期化実行
+        initSimulation();
+
+        // ウィンドウ幅変更時にキャンバスを自動再描画
+        window.addEventListener('resize', () => {
+            drawRoad();
+            drawSpacetime();
+        });
+    </script>
+</body>
+</html>

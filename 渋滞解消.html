@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>セルオートマトン渋滞シミュレータ</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@material-icons/font/css/material-icons.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js/dist/driver.min.css">
+
+<script src="https://cdn.jsdelivr.net/npm/driver.js/dist/driver.min.js"></script>
+
+<style>
+:root{
+--bg:#f5f5f5;
+--card:#ffffff;
+--text:#222;
+--accent:#1976d2;
+}
+
+body{
+font-family:'Noto Sans JP',sans-serif;
+margin:0;
+background:var(--bg);
+color:var(--text);
+}
+
+header{
+background:var(--accent);
+color:#fff;
+padding:10px;
+display:flex;
+justify-content:space-between;
+}
+
+.container{padding:10px;}
+
+.card{
+background:var(--card);
+padding:10px;
+margin-bottom:10px;
+border-radius:10px;
+}
+
+button{
+background:var(--accent);
+color:#fff;
+border:none;
+padding:6px 12px;
+margin:3px;
+border-radius:6px;
+cursor:pointer;
+}
+
+canvas{
+background:#fff;
+border:1px solid #ccc;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+<div>渋滞シミュレータ</div>
+<div>
+<button onclick="ツアー開始()">使い方</button>
+<button onclick="設定開く()">設定</button>
+</div>
+</header>
+
+<div class="container">
+
+<div class="card">
+<label>車密度 <input type="range" id="密度" min="0" max="1" step="0.05" value="0.3"></label><br>
+<label>最高速度 <input type="number" id="速度" value="5"></label><br>
+<label>減速確率 <input type="range" id="確率" min="0" max="1" step="0.1" value="0.3"></label><br>
+
+<button onclick="開始()">開始</button>
+<button onclick="停止()">停止</button>
+<button onclick="1歩()">1ステップ</button>
+<button onclick="リセット()">リセット</button>
+</div>
+
+<div class="card">
+<canvas id="道路" width="800" height="200"></canvas>
+</div>
+
+</div>
+
+<!-- 設定モーダル -->
+<div id="設定" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#0005;">
+<div style="background:#fff;margin:100px auto;padding:20px;width:300px;">
+<h3>テーマ</h3>
+<select onchange="テーマ変更(this.value)">
+<option value="ライト">ライト</option>
+<option value="ダーク">ダーク</option>
+<option value="サクラ">サクラ</option>
+<option value="モノクロ">モノクロ</option>
+</select>
+<br><br>
+<button onclick="設定閉じる()">閉じる</button>
+</div>
+</div>
+
+<script>
+let 幅=100;
+let 道=[];
+let 走行中=false;
+let ctx=document.getElementById("道路").getContext("2d");
+
+function 初期化(){
+道=[];
+let 密度=+密度入力.value;
+for(let i=0;i<幅;i++){
+ if(Math.random()<密度){
+  道.push(Math.floor(Math.random()*5));
+ }else{
+  道.push(-1);
+ }
+}
+描画();
+}
+
+function 更新(){
+let vmax=+速度入力.value;
+let p=+確率入力.value;
+
+let 新=[];
+for(let i=0;i<幅;i++) 新.push(-1);
+
+for(let i=0;i<幅;i++){
+ if(道[i]>=0){
+  let v=道[i];
+
+  v=Math.min(v+1,vmax);
+
+  let d=0;
+  while(d<=v && 道[(i+d+1)%幅]==-1) d++;
+  v=Math.min(v,d);
+
+  if(Math.random()<p && v>0) v--;
+
+  let next=(i+v)%幅;
+  新[next]=v;
+ }
+}
+道=新;
+描画();
+}
+
+function 描画(){
+ctx.clearRect(0,0,800,200);
+for(let i=0;i<幅;i++){
+ if(道[i]>=0){
+  ctx.fillStyle="red";
+  ctx.fillRect(i*8,100,8,8);
+ }
+}
+}
+
+function ループ(){
+if(走行中){
+更新();
+requestAnimationFrame(ループ);
+}
+}
+
+function 開始(){走行中=true;ループ();}
+function 停止(){走行中=false;}
+function 1歩(){更新();}
+function リセット(){初期化();}
+
+function 設定開く(){設定.style.display="block";}
+function 設定閉じる(){設定.style.display="none";}
+
+function テーマ変更(t){
+if(t=="ダーク"){
+ document.documentElement.style.setProperty('--bg','#222');
+ document.documentElement.style.setProperty('--text','#fff');
+}else if(t=="サクラ"){
+ document.documentElement.style.setProperty('--bg','#ffe4e9');
+ document.documentElement.style.setProperty('--accent','#e91e63');
+}else if(t=="モノクロ"){
+ document.documentElement.style.setProperty('--bg','#fff');
+ document.documentElement.style.setProperty('--text','#000');
+}else{
+ location.reload();
+}
+}
+
+function ツアー開始(){
+const driver = new Driver();
+driver.defineSteps([
+{element:'header',popover:{title:'タイトル',description:'シミュレータ'}},
+{element:'#密度',popover:{title:'車密度',description:'混雑度'}},
+{element:'#速度',popover:{title:'最高速度'}},
+{element:'#確率',popover:{title:'ランダム減速'}},
+{element:'canvas',popover:{title:'表示',description:'渋滞観察'}},
+]);
+driver.start();
+}
+
+const 密度入力=document.getElementById("密度");
+const 速度入力=document.getElementById("速度");
+const 確率入力=document.getElementById("確率");
+
+初期化();
+</script>
+
+</body>
+</html>

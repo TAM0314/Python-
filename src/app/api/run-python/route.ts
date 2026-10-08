@@ -8,16 +8,28 @@ export async function POST(request: NextRequest) {
   try {
     const exec = await import('child_process');
     const { spawn } = exec;
-    const py = spawn('python', ['-c', code]);
+    const pythonExecutable = process.env.PYTHON_EXECUTABLE || 'python';
+    const py = spawn(
+      pythonExecutable,
+      ['-c', code],
+      {
+        env: {
+          ...process.env,
+          PYTHONIOENCODING: 'utf-8',
+        },
+      }
+    );
 
     output = await new Promise((resolve, reject) => {
       let stdout = '';
       let stderr = '';
+      py.stdout.setEncoding('utf8');
+      py.stderr.setEncoding('utf8');
       py.stdout.on('data', (chunk) => {
-        stdout += chunk.toString();
+        stdout += chunk;
       });
       py.stderr.on('data', (chunk) => {
-        stderr += chunk.toString();
+        stderr += chunk;
       });
       py.on('close', () => {
         if (stderr) {

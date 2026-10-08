@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>弓道的中率分析ツール v3 (多人数対応)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1, h2, h3 { color: #2c3e50; border-bottom: 2px solid #27ae60; padding-bottom: 5px; }
+        .input-group { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+        .arrow-btn { width: 45px; height: 45px; font-size: 18px; cursor: pointer; border: 2px solid #ddd; border-radius: 50%; background: white; transition: 0.1s; }
+        .arrow-btn:active { background: #eee; transform: scale(0.9); }
+        .member-row { display: grid; grid-template-columns: 120px 1fr 80px; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .arrow-display { font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 3px; color: #34495e; }
+        button#save { background-color: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 10px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .stat-item { text-align: center; padding: 15px; background: #ebf5fb; border-radius: 5px; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #2980b9; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: center; }
+        .chart-container { position: relative; height: 250px; width: 100%; }
+        .member-tag { display: inline-block; background: #27ae60; color: white; padding: 2px 8px; border-radius: 10px; margin: 2px; font-size: 12px; cursor: pointer; }
+        .member-tag.inactive { background: #bdc3c7; }
+        .flex { display: flex; gap: 10px; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+
+    <h1>弓道的中率分析ツール (多人数版)</h1>
+
+    <!-- メンバー管理 -->
+    <div class="card">
+        <h2>メンバー管理</h2>
+        <div class="input-group">
+            <input type="text" id="new-member-name" placeholder="名前を入力">
+            <button onclick="addMember()">メンバー追加</button>
+        </div>
+        <div id="member-tags" class="flex"></div>
+        <p style="font-size: 12px; color: #7f8c8d;">※クリックで入力対象のON/OFFを切り替えられます</p>
+    </div>
+
+    <!-- 入力セクション -->
+    <div class="card">
+        <h2>一括入力 (1立 4本)</h2>
+        <div class="input-group">
+            <input type="date" id="date-input">
+            <input type="text" id="location-input" placeholder="射場名" list="locations">
+            <datalist id="locations"></datalist>
+        </div>
+        
+        <div id="batch-input-area">
+            <!-- メンバーごとの入力行がここに生成される -->
+        </div>
+        
+        <button id="save" onclick="saveBatchResults()">全員分の記録を保存</button>
+    </div>
+
+    <!-- 分析セクション -->
+    <div class="card">
+        <h2>分析ダッシュボード</h2>
+        <div class="input-group">
+            <label>分析対象: </label>
+            <select id="analysis-member-filter" onchange="updateUI()"></select>
+            <label> 目標的中率: </label>
+            <input type="number" id="target-rate-input" value="50" style="width: 50px;" onchange="updateUI()">%
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-label">的中率</div>
+                <div class="stat-value" id="total-rate">0%</div>
+                <div id="total-count">0/0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">目標達成度</div>
+                <div class="stat-value" id="achievement-text">0%</div>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <h3>矢別的中率</h3>
+                <div class="chart-container"><canvas id="arrowChart"></canvas></div>
+            </div>
+            <div>
+                <h3>的中数分布</h3>
+                <div class="chart-container"><canvas id="distChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 履歴セクション -->
+    <div class="card">
+        <h2>記録履歴</h2>
+        <div class="flex" style="justify-content: space-between; margin-bottom: 10px;">
+            <button onclick="exportCSV()">CSV書き出し</button>
+            <button onclick="clearAllData()" style="color: red;">全データ削除</button>
+        </div>
+        <div style="max-height: 300px; overflow-y: auto;">
+            <table id="history-table">
+                <thead>
+                    <tr><th>日付</th><th>名前</th><th>場所</th><th>結果</th><th>中</th><th>操作</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let members = JSON.parse(localStorage.getItem('kyudo_members')) || ["自分"];
+        let records = JSON.parse(localStorage.getItem('kyudo_records_v3')) || [];
+        let activeMemberInputs = [...members]; 
+        let tempBatchInput = {}; // {memberName: []}
+
+        let arrowChart = null;
+        let distChart = null;
+
+        // 初期化
+        function init() {
+            document.getElementById('date-input').valueAsDate = new Date();
+            const lastLoc = records.length > 0 ? records[records.length-1].location : "ホーム";
+            document.getElementById('location-input').value = lastLoc;
+            updateMemberUI();
+            updateUI();
+        }
+
+        function addMember() {
+            const name = document.getElementById('new-member-name').value.trim();
+            if (name && !members.includes(name)) {
+                members.push(name);
+                activeMemberInputs.push(name);
+                localStorage.setItem('kyudo_members', JSON.stringify(members));
+                document.getElementById('new-member-name').value = '';
+                updateMemberUI();
+                updateUI();
+            }
+        }
+
+        function toggleMemberActive(name) {
+            if (activeMemberInputs.includes(name)) {
+                activeMemberInputs = activeMemberInputs.filter(m => m !== name);
+            } else {
+                activeMemberInputs.push(name);
+            }
+            updateMemberUI();
+        }
+
+        function updateMemberUI() {
+            const container = document.getElementById('member-tags');
+            container.innerHTML = '';
+            members.forEach(m => {
+                const span = document.createElement('span');
+                span.className = `member-tag ${activeMemberInputs.includes(m) ? '' : 'inactive'}`;
+                span.innerText = m;
+                span.onclick = () => toggleMemberActive(m);
+                container.appendChild(span);
+            });
+
+            // 入力エリアの生成
+            const inputArea = document.getElementById('batch-input-area');
+            inputArea.innerHTML = '';
+            activeMemberInputs.forEach(m => {
+                if (!tempBatchInput[m]) tempBatchInput[m] = [];
+                const row = document.createElement('div');
+                row.className = 'member-row';
+                row.innerHTML = `
+                    <div style="font-weight:bold;">${m}</div>
+                    <div id="display-${m}" class="arrow-display">----</div>
+                    <div class="flex">
+                        <button class="arrow-btn" onclick="addArrowToBatch('${m}', '○')">○</button>
+                        <button class="arrow-btn" onclick="addArrowToBatch('${m}', '×')">×</button>
+                        <button onclick="resetBatchInput('${m}')" style="font-size:10px;">×清</button>
+                    </div>
+                `;
+                inputArea.appendChild(row);
+                updateBatchDisplay(m);
+            });
+
+            // フィルタの更新
+            const filter = document.getElementById('analysis-member-filter');
+            const currentVal = filter.value;
+            filter.innerHTML = '<option value="全員">全員</option>' + members.map(m => `<option value="${m}">${m}</option>`).join('');
+            if (members.includes(currentVal)) filter.value = currentVal;
+        }
+
+        function addArrowToBatch(name, type) {
+            if (tempBatchInput[name].length < 4) {
+                tempBatchInput[name].push(type);
+                updateBatchDisplay(name);
+            }
+        }
+
+        function resetBatchInput(name) {
+            tempBatchInput[name] = [];
+            updateBatchDisplay(name);
+        }
+
+        function updateBatchDisplay(name) {
+            const display = document.getElementById(`display-${name}`);
+            if (display) {
+                const val = tempBatchInput[name].join('') + '-'.repeat(4 - tempBatchInput[name].length);
+                display.innerText = val;
+            }
+        }
+
+        function saveBatchResults() {
+            const date = document.getElementById('date-input').value;
+            const location = document.getElementById('location-input').value || "不明";
+            let count = 0;
+
+            activeMemberInputs.forEach(m => {
+                if (tempBatchInput[m].length === 4) {
+                    records.push({ date, location, name: m, arrows: tempBatchInput[m].join('') });
+                    tempBatchInput[m] = [];
+                    count++;
+                }
+            });
+
+            if (count === 0) {
+                alert('4本分の入力が完了しているメンバーがいません。');
+                return;
+            }
+
+            localStorage.setItem('kyudo_records_v3', JSON.stringify(records));
+            updateMemberUI();
+            updateUI();
+        }
+
+        function updateUI() {
+            const filter = document.getElementById('analysis-member-filter').value;
+            const filteredRecords = filter === "全員" ? records : records.filter(r => r.name === filter);
+
+            updateTable(filteredRecords);
+            const stats = calculateStats(filteredRecords);
+            updateDashboard(stats);
+            updateCharts(stats, filteredRecords.length);
+        }
+
+        function updateTable(data) {
+            const tbody = document.querySelector('#history-table tbody');
+            tbody.innerHTML = '';
+            data.slice().reverse().forEach((r, idx) => {
+                const hits = (r.arrows.match(/○/g) || []).length;
+                tbody.innerHTML += `<tr>
+                    <td>${r.date}</td><td>${r.name}</td><td>${r.location}</td>
+                    <td style="font-family:monospace;">${r.arrows}</td><td>${hits}</td>
+                    <td><button onclick="deleteRecord(${records.indexOf(r)})">削</button></td>
+                </tr>`;
+            });
+        }
+
+        function calculateStats(data) {
+            if (data.length === 0) return { rate: 0, count: "0/0", arrowStats: [0,0,0,0], distStats: [0,0,0,0,0] };
+            let hits = 0;
+            let arrowStats = [0,0,0,0];
+            let distStats = [0,0,0,0,0];
+            data.forEach(r => {
+                let roundHits = 0;
+                for(let i=0; i<4; i++) {
+                    if(r.arrows[i]==='○') { hits++; arrowStats[i]++; roundHits++; }
+                }
+                distStats[roundHits]++;
+            });
+            return {
+                rate: ((hits / (data.length * 4)) * 100).toFixed(1),
+                count: `${hits}/${data.length * 4}`,
+                arrowStats, distStats
+            };
+        }
+
+        function updateDashboard(stats) {
+            document.getElementById('total-rate').innerText = stats.rate + '%';
+            document.getElementById('total-count').innerText = stats.count;
+            const target = parseFloat(document.getElementById('target-rate-input').value) || 1;
+            document.getElementById('achievement-text').innerText = Math.min(100, (stats.rate / target) * 100).toFixed(1) + '%';
+        }
+
+        function updateCharts(stats, total) {
+            if (total === 0) return;
+            const ctxA = document.getElementById('arrowChart').getContext('2d');
+            if (arrowChart) arrowChart.destroy();
+            arrowChart = new Chart(ctxA, {
+                type: 'bar',
+                data: {
+                    labels: ['1', '2', '3', '4'],
+                    datasets: [{ label: '的中率 (%)', data: stats.arrowStats.map(s => (s/total*100).toFixed(1)), backgroundColor: '#27ae60' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+
+            const ctxD = document.getElementById('distChart').getContext('2d');
+            if (distChart) distChart.destroy();
+            distChart = new Chart(ctxD, {
+                type: 'pie',
+                data: {
+                    labels: ['0', '1', '2', '3', '皆'],
+                    datasets: [{ data: stats.distStats, backgroundColor: ['#bdc3c7', '#95a5a6', '#3498db', '#f1c40f', '#e74c3c'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function deleteRecord(idx) {
+            if(confirm('削除しますか？')) {
+                records.splice(idx, 1);
+                localStorage.setItem('kyudo_records_v3', JSON.stringify(records));
+                updateUI();
+            }
+        }
+
+        function exportCSV() {
+            let csv = "日付,名前,場所,結果,的中数\n";
+            records.forEach(r => {
+                const hits = (r.arrows.match(/○/g) || []).length;
+                csv += `${r.date},${r.name},${r.location},${r.arrows},${hits}\n`;
+            });
+            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `kyudo_team_records.csv`;
+            link.click();
+        }
+
+        function clearAllData() {
+            if (confirm('全データを削除しますか？')) {
+                localStorage.removeItem('kyudo_records_v3');
+                records = [];
+                updateUI();
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
