@@ -16,7 +16,6 @@ interface Question {
 }
 
 export default function BaseConverterPage() {
-  // Default mode is timeattack
   const [mode, setMode] = useState<Mode>("timeattack");
 
   // --- Converter Mode State ---
@@ -224,6 +223,7 @@ export default function BaseConverterPage() {
       }
     } else {
       setFeedback("不正解... もう一度！ ❌");
+      setUserAnswer(""); // Clear answer input on incorrect answer
       setTimeout(() => setFeedback(null), 800);
     }
   };
@@ -441,6 +441,11 @@ export default function BaseConverterPage() {
                     <div className="flex gap-3">
                       <input
                         type="text"
+                        lang="en"
+                        inputMode="text"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
                         value={userAnswer}
                         onChange={(e) => handleAnswerChange(e.target.value)}
                         placeholder="半角英数字で入力..."

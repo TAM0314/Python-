@@ -181,6 +181,11 @@
                         <input
                             type="text"
                             id="ta-answer-input"
+                            lang="en"
+                            inputmode="text"
+                            autocapitalize="none"
+                            autocorrect="off"
+                            spellcheck="false"
                             oninput="handleAnswerInput(this)"
                             placeholder="半角英数字で入力..."
                             autocomplete="off"
@@ -444,6 +449,7 @@
                 }
             } else {
                 feedback.textContent = "不正解... もう一度！ ❌";
+                input.value = ""; // Clear answer input on incorrect answer
                 setTimeout(() => feedback.textContent = "", 800);
             }
         }
