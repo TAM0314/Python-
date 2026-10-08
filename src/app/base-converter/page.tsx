@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-type Mode = "converter" | "timeattack";
+type Mode = "timeattack" | "converter";
 
 interface Question {
   id: number;
@@ -16,7 +16,8 @@ interface Question {
 }
 
 export default function BaseConverterPage() {
-  const [mode, setMode] = useState<Mode>("converter");
+  // Default mode is timeattack
+  const [mode, setMode] = useState<Mode>("timeattack");
 
   // --- Converter Mode State ---
   const [binInput, setBinInput] = useState<string>("101010");
@@ -96,6 +97,15 @@ export default function BaseConverterPage() {
       setActiveField("hex");
       setHexInput(val);
     }
+  };
+
+  // Sanitize user answer to half-width alphanumeric only
+  const handleAnswerChange = (val: string) => {
+    let sanitized = val.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) =>
+      String.fromCharCode(s.charCodeAt(0) - 0xfee0)
+    );
+    sanitized = sanitized.replace(/[^0-9a-zA-Z]/g, "");
+    setUserAnswer(sanitized);
   };
 
   // Time Attack functions
@@ -241,20 +251,20 @@ export default function BaseConverterPage() {
           </div>
           <div className="flex bg-slate-800 p-1 rounded-xl">
             <button
-              onClick={() => setMode("converter")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                mode === "converter" ? "bg-cyan-600 text-white shadow" : "text-slate-400 hover:text-white"
-              }`}
-            >
-              通常変換
-            </button>
-            <button
               onClick={() => setMode("timeattack")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 mode === "timeattack" ? "bg-cyan-600 text-white shadow" : "text-slate-400 hover:text-white"
               }`}
             >
               タイムアタック
+            </button>
+            <button
+              onClick={() => setMode("converter")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                mode === "converter" ? "bg-cyan-600 text-white shadow" : "text-slate-400 hover:text-white"
+              }`}
+            >
+              通常変換
             </button>
           </div>
         </header>
@@ -432,8 +442,8 @@ export default function BaseConverterPage() {
                       <input
                         type="text"
                         value={userAnswer}
-                        onChange={(e) => setUserAnswer(e.target.value)}
-                        placeholder="答えを入力..."
+                        onChange={(e) => handleAnswerChange(e.target.value)}
+                        placeholder="半角英数字で入力..."
                         autoFocus
                         className="flex-1 px-5 py-4 rounded-xl border border-slate-700 bg-slate-950 text-xl font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-sm"
                       />
@@ -442,7 +452,7 @@ export default function BaseConverterPage() {
                       </Button>
                     </div>
                     <p className="text-xs text-slate-500 text-center">
-                      Enterキーで解答を送信できます（16進数は大文字・小文字どちらでも可）
+                      半角英数字のみ入力可能（Enterキーで解答送信）
                     </p>
                   </form>
                 </div>

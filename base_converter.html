@@ -24,11 +24,11 @@
                 </div>
             </div>
             <div class="flex bg-slate-800 p-1 rounded-xl">
-                <button id="tab-converter" onclick="switchMode('converter')" class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-cyan-600 text-white shadow">
-                    通常変換モード
-                </button>
-                <button id="tab-timeattack" onclick="switchMode('timeattack')" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white">
+                <button id="tab-timeattack" onclick="switchMode('timeattack')" class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-cyan-600 text-white shadow">
                     タイムアタック
+                </button>
+                <button id="tab-converter" onclick="switchMode('converter')" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white">
+                    通常変換モード
                 </button>
             </div>
         </div>
@@ -37,7 +37,7 @@
     <!-- Main Content -->
     <main class="flex-1 max-w-4xl w-full mx-auto p-6 flex flex-col justify-center">
         <!-- Converter Mode -->
-        <div id="section-converter" class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-6 sm:p-10 space-y-8">
+        <div id="section-converter" class="hidden bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-6 sm:p-10 space-y-8">
             <div class="text-center space-y-2">
                 <h2 class="text-2xl font-bold text-white">リアルタイム基数変換</h2>
                 <p class="text-sm text-slate-400">
@@ -108,7 +108,7 @@
         </div>
 
         <!-- Time Attack Mode -->
-        <div id="section-timeattack" class="hidden bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-6 sm:p-10 space-y-8">
+        <div id="section-timeattack" class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-6 sm:p-10 space-y-8">
             <div id="ta-idle" class="text-center space-y-6 py-8">
                 <div class="w-20 h-20 bg-cyan-950 text-cyan-400 rounded-2xl mx-auto flex items-center justify-center text-3xl font-bold shadow-inner border border-cyan-800">
                     ⏱️
@@ -181,7 +181,8 @@
                         <input
                             type="text"
                             id="ta-answer-input"
-                            placeholder="答えを入力..."
+                            oninput="handleAnswerInput(this)"
+                            placeholder="半角英数字で入力..."
                             autocomplete="off"
                             autofocus
                             class="flex-1 px-5 py-4 rounded-xl border border-slate-700 bg-slate-950 text-xl font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-sm"
@@ -191,7 +192,7 @@
                         </button>
                     </div>
                     <p class="text-xs text-slate-500 text-center">
-                        Enterキーで解答を送信できます（16進数は大文字・小文字どちらでも可）
+                        半角英数字のみ入力可能（Enterキーで解答送信）
                     </p>
                 </form>
             </div>
@@ -320,6 +321,18 @@
             }
         }
 
+        // Sanitize input to half-width alphanumeric only
+        function handleAnswerInput(inputElement) {
+            let val = inputElement.value;
+            // Convert full-width alphanumeric to half-width
+            val = val.replace(/[Ａ-Ｚａ-ｚ０-９]/g, function(s) {
+                return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+            });
+            // Keep only half-width alphanumeric (0-9, a-z, A-Z)
+            val = val.replace(/[^0-9a-zA-Z]/g, '');
+            inputElement.value = val;
+        }
+
         // --- Time Attack Logic ---
         let taQuestions = [];
         let taCurrentIndex = 0;
@@ -334,7 +347,6 @@
             const bases = [2, 10, 16];
             const baseNames = { 2: "2進数", 10: "10進数", 16: "16進数" };
 
-            // Min and max value based on binary digits if binary involved
             const maxVal = Math.pow(2, digitCount) - 1;
             const minVal = 1;
 
@@ -362,7 +374,6 @@
                     fromBase = 16; toBase = 2;
                 }
 
-                // Generate random value constrained by digitCount if binary is involved, else 1 to 255
                 let val;
                 if (fromBase === 2 || toBase === 2) {
                     val = Math.floor(Math.random() * (maxVal - minVal + 1)) + minVal;
