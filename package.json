@@ -4,12 +4,12 @@
   "version": "0.1.0",
   "main": "main.js",
   "scripts": {
-    "dev": "cross-env NEXT_DISABLE_SWC_PATCHING=1 NEXT_IGNORE_INCORRECT_LOCKFILE=1 next dev",
-    "build": "cross-env NEXT_DISABLE_SWC_PATCHING=1 NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build",
-    "start": "cross-env NEXT_DISABLE_SWC_PATCHING=1 NEXT_IGNORE_INCORRECT_LOCKFILE=1 next start",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "lint": "next lint",
-    "electron:dev": "cross-env NEXT_DISABLE_SWC_PATCHING=1 NEXT_IGNORE_INCORRECT_LOCKFILE=1 concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron:build": "cross-env NEXT_DISABLE_SWC_PATCHING=1 NEXT_IGNORE_INCORRECT_LOCKFILE=1 npm run build && electron-builder"
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "npm run build && electron-builder"
   },
   "dependencies": {
     "clsx": "^2.1.0",
