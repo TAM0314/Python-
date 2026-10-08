@@ -116,24 +116,39 @@
                 <div class="space-y-2">
                     <h2 class="text-2xl font-bold text-white">基数変換タイムアタック</h2>
                     <p class="text-sm text-slate-400 max-w-md mx-auto">
-                        変換パターンを選んで全10問のタイムアタックに挑戦しよう！
+                        変換パターンと2進数の桁数を選んで全10問のタイムアタックに挑戦しよう！
                     </p>
                 </div>
 
-                <!-- Conversion Type Selector -->
-                <div class="max-w-xs mx-auto space-y-2 text-left">
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                        変換モード選択
-                    </label>
-                    <select id="ta-mode-select" class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                        <option value="random">🔀 ランダム（すべての組み合わせ）</option>
-                        <option value="2to10">2進数 ⇒ 10進数</option>
-                        <option value="10to2">10進数 ⇒ 2進数</option>
-                        <option value="10to16">10進数 ⇒ 16進数</option>
-                        <option value="16to10">16進数 ⇒ 10進数</option>
-                        <option value="2to16">2進数 ⇒ 16進数</option>
-                        <option value="16to2">16進数 ⇒ 2進数</option>
-                    </select>
+                <!-- Selectors -->
+                <div class="max-w-xs mx-auto space-y-4 text-left">
+                    <div class="space-y-1">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                            変換モード選択
+                        </label>
+                        <select id="ta-mode-select" onchange="toggleDigitSelector()" class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            <option value="random">🔀 ランダム（すべての組み合わせ）</option>
+                            <option value="2to10">2進数 ⇒ 10進数</option>
+                            <option value="10to2">10進数 ⇒ 2進数</option>
+                            <option value="10to16">10進数 ⇒ 16進数</option>
+                            <option value="16to10">16進数 ⇒ 10進数</option>
+                            <option value="2to16">2進数 ⇒ 16進数</option>
+                            <option value="16to2">16進数 ⇒ 2進数</option>
+                        </select>
+                    </div>
+
+                    <div id="digit-selector-wrapper" class="space-y-1">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                            2進数の桁数 (n桁)
+                        </label>
+                        <select id="ta-digit-select" class="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            <option value="2">2桁 (0 ～ 3)</option>
+                            <option value="3">3桁 (0 ～ 7)</option>
+                            <option value="4" selected>4桁 (デフォルト: 0 ～ 15)</option>
+                            <option value="6">6桁 (0 ～ 63)</option>
+                            <option value="8">8桁 (0 ～ 255)</option>
+                        </select>
+                    </div>
                 </div>
 
                 <button onclick="startTimeAttack()" class="px-8 py-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl shadow-lg transition-all text-lg">
@@ -295,6 +310,16 @@
             }
         }
 
+        function toggleDigitSelector() {
+            const mode = document.getElementById('ta-mode-select').value;
+            const wrapper = document.getElementById('digit-selector-wrapper');
+            if (mode === '10to16' || mode === '16to10') {
+                wrapper.classList.add('hidden');
+            } else {
+                wrapper.classList.remove('hidden');
+            }
+        }
+
         // --- Time Attack Logic ---
         let taQuestions = [];
         let taCurrentIndex = 0;
@@ -304,12 +329,16 @@
 
         function startTimeAttack() {
             const modeSelectVal = document.getElementById('ta-mode-select').value;
+            const digitCount = parseInt(document.getElementById('ta-digit-select').value, 10) || 4;
             taQuestions = [];
             const bases = [2, 10, 16];
             const baseNames = { 2: "2進数", 10: "10進数", 16: "16進数" };
 
+            // Min and max value based on binary digits if binary involved
+            const maxVal = Math.pow(2, digitCount) - 1;
+            const minVal = 1;
+
             for (let i = 0; i < 10; i++) {
-                const val = Math.floor(Math.random() * 254) + 1;
                 let fromBase = 10;
                 let toBase = 2;
 
@@ -333,13 +362,21 @@
                     fromBase = 16; toBase = 2;
                 }
 
+                // Generate random value constrained by digitCount if binary is involved, else 1 to 255
+                let val;
+                if (fromBase === 2 || toBase === 2) {
+                    val = Math.floor(Math.random() * (maxVal - minVal + 1)) + minVal;
+                } else {
+                    val = Math.floor(Math.random() * 254) + 1;
+                }
+
                 let formatVal = "";
-                if (fromBase === 2) formatVal = val.toString(2);
+                if (fromBase === 2) formatVal = val.toString(2).padStart(digitCount, '0');
                 else if (fromBase === 10) formatVal = val.toString(10);
                 else formatVal = val.toString(16).toUpperCase();
 
                 let targetStr = "";
-                if (toBase === 2) targetStr = val.toString(2);
+                if (toBase === 2) targetStr = val.toString(2).padStart(digitCount, '0');
                 else if (toBase === 10) targetStr = val.toString(10);
                 else targetStr = val.toString(16).toUpperCase();
 

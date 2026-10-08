@@ -27,6 +27,7 @@ export default function BaseConverterPage() {
   // --- Time Attack Mode State ---
   const [taState, setTaState] = useState<"idle" | "playing" | "finished">("idle");
   const [taModeSelect, setTaModeSelect] = useState<string>("random");
+  const [digitCount, setDigitCount] = useState<number>(4);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [userAnswer, setUserAnswer] = useState<string>("");
@@ -117,8 +118,10 @@ export default function BaseConverterPage() {
   const generateQuestions = (): Question[] => {
     const bases: (2 | 10 | 16)[] = [2, 10, 16];
     const qs: Question[] = [];
+    const maxVal = Math.pow(2, digitCount) - 1;
+    const minVal = 1;
+
     for (let i = 0; i < 10; i++) {
-      const val = Math.floor(Math.random() * 254) + 1;
       let fromBase: 2 | 10 | 16 = 10;
       let toBase: 2 | 10 | 16 = 2;
 
@@ -142,13 +145,20 @@ export default function BaseConverterPage() {
         fromBase = 16; toBase = 2;
       }
 
+      let val;
+      if (fromBase === 2 || toBase === 2) {
+        val = Math.floor(Math.random() * (maxVal - minVal + 1)) + minVal;
+      } else {
+        val = Math.floor(Math.random() * 254) + 1;
+      }
+
       let formatVal = "";
-      if (fromBase === 2) formatVal = val.toString(2);
+      if (fromBase === 2) formatVal = val.toString(2).padStart(digitCount, '0');
       else if (fromBase === 10) formatVal = val.toString(10);
       else formatVal = val.toString(16).toUpperCase();
 
       let targetStr = "";
-      if (toBase === 2) targetStr = val.toString(2);
+      if (toBase === 2) targetStr = val.toString(2).padStart(digitCount, '0');
       else if (toBase === 10) targetStr = val.toString(10);
       else targetStr = val.toString(16).toUpperCase();
 
@@ -327,7 +337,7 @@ export default function BaseConverterPage() {
           <Card>
             <CardHeader>
               <CardTitle>タイムアタックモード</CardTitle>
-              <CardDescription>変換パターンを選んで全10問のタイムアタックに挑戦します。</CardDescription>
+              <CardDescription>変換パターンと2進数桁数を選んで全10問のタイムアタックに挑戦します。</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {taState === "idle" && (
@@ -338,27 +348,48 @@ export default function BaseConverterPage() {
                   <div className="space-y-2">
                     <h3 className="text-2xl font-bold text-white">タイムアタック開始準備</h3>
                     <p className="text-sm text-slate-400 max-w-md mx-auto">
-                      変換モードを選択してスタートボタンを押してください。
+                      変換モードと2進数の桁数を選択してスタートボタンを押してください。
                     </p>
                   </div>
 
-                  <div className="max-w-xs mx-auto space-y-2 text-left">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                      変換モード選択
-                    </label>
-                    <select
-                      value={taModeSelect}
-                      onChange={(e) => setTaModeSelect(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                    >
-                      <option value="random">🔀 ランダム（すべての組み合わせ）</option>
-                      <option value="2to10">2進数 ⇒ 10進数</option>
-                      <option value="10to2">10進数 ⇒ 2進数</option>
-                      <option value="10to16">10進数 ⇒ 16進数</option>
-                      <option value="16to10">16進数 ⇒ 10進数</option>
-                      <option value="2to16">2進数 ⇒ 16進数</option>
-                      <option value="16to2">16進数 ⇒ 2進数</option>
-                    </select>
+                  <div className="max-w-xs mx-auto space-y-4 text-left">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                        変換モード選択
+                      </label>
+                      <select
+                        value={taModeSelect}
+                        onChange={(e) => setTaModeSelect(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      >
+                        <option value="random">🔀 ランダム（すべての組み合わせ）</option>
+                        <option value="2to10">2進数 ⇒ 10進数</option>
+                        <option value="10to2">10進数 ⇒ 2進数</option>
+                        <option value="10to16">10進数 ⇒ 16進数</option>
+                        <option value="16to10">16進数 ⇒ 10進数</option>
+                        <option value="2to16">2進数 ⇒ 16進数</option>
+                        <option value="16to2">16進数 ⇒ 2進数</option>
+                      </select>
+                    </div>
+
+                    {taModeSelect !== "10to16" && taModeSelect !== "16to10" && (
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                          2進数の桁数 (n桁)
+                        </label>
+                        <select
+                          value={digitCount}
+                          onChange={(e) => setDigitCount(parseInt(e.target.value, 10))}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        >
+                          <option value={2}>2桁 (0 ～ 3)</option>
+                          <option value={3}>3桁 (0 ～ 7)</option>
+                          <option value={4}>4桁 (デフォルト: 0 ～ 15)</option>
+                          <option value={6}>6桁 (0 ～ 63)</option>
+                          <option value={8}>8桁 (0 ～ 255)</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
 
                   <Button onClick={handleStartGame} className="px-8 py-4 text-lg">
