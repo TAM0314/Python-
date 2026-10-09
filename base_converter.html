@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>基数変換マスター & タイムアタック</title>
+    <title>基数変換マスター</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
@@ -16,7 +16,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-white">
-                        基数変換マスター & タイムアタック
+                        基数変換マスター
                     </h1>
                     <p class="text-xs text-slate-400">
                         2進数・10進数・16進数の相互変換学習ツール
@@ -187,6 +187,7 @@
                             autocorrect="off"
                             spellcheck="false"
                             oninput="handleAnswerInput(this)"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault(); submitAnswer(event);}"
                             placeholder="半角英数字で入力..."
                             autocomplete="off"
                             autofocus
@@ -197,7 +198,7 @@
                         </button>
                     </div>
                     <p class="text-xs text-slate-500 text-center">
-                        半角英数字のみ入力可能（Enterキーで解答送信）
+                        半角英数字のみ入力可能（Enterキー1回で解答送信）
                     </p>
                 </form>
             </div>
@@ -326,14 +327,11 @@
             }
         }
 
-        // Sanitize input to half-width alphanumeric only
         function handleAnswerInput(inputElement) {
             let val = inputElement.value;
-            // Convert full-width alphanumeric to half-width
             val = val.replace(/[Ａ-Ｚａ-ｚ０-９]/g, function(s) {
                 return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
             });
-            // Keep only half-width alphanumeric (0-9, a-z, A-Z)
             val = val.replace(/[^0-9a-zA-Z]/g, '');
             inputElement.value = val;
         }
@@ -425,11 +423,17 @@
             input.focus();
         }
 
+        function normalizeAns(ans) {
+            let s = ans.trim().toUpperCase();
+            if (s.startsWith("0X")) s = s.slice(2);
+            return s;
+        }
+
         function submitAnswer(e) {
             e.preventDefault();
             const input = document.getElementById('ta-answer-input');
-            const userAns = input.value.trim().toUpperCase();
-            const correctAns = taQuestions[taCurrentIndex].answerStr.toUpperCase();
+            const userAns = normalizeAns(input.value);
+            const correctAns = normalizeAns(taQuestions[taCurrentIndex].answerStr);
             const feedback = document.getElementById('ta-feedback');
 
             if (userAns === correctAns) {
@@ -449,7 +453,7 @@
                 }
             } else {
                 feedback.textContent = "不正解... もう一度！ ❌";
-                input.value = ""; // Clear answer input on incorrect answer
+                input.value = "";
                 setTimeout(() => feedback.textContent = "", 800);
             }
         }

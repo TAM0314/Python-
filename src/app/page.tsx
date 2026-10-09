@@ -197,13 +197,19 @@ export default function Home() {
     startTimer();
   };
 
+  const normalizeAns = (ans: string) => {
+    let s = ans.trim().toUpperCase();
+    if (s.startsWith("0X")) s = s.slice(2);
+    return s;
+  };
+
   const handleAnswerSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (taState !== "playing") return;
 
     const currentQ = questions[currentIndex];
-    const cleanUserAns = userAnswer.trim().toUpperCase();
-    const cleanCorrectAns = currentQ.answerStr.toUpperCase();
+    const cleanUserAns = normalizeAns(userAnswer);
+    const cleanCorrectAns = normalizeAns(currentQ.answerStr);
 
     const isCorrect = cleanUserAns === cleanCorrectAns;
 
@@ -244,7 +250,7 @@ export default function Home() {
       <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6">
         <header className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-8 shadow-2xl shadow-black/20 backdrop-blur-xl flex flex-col sm:flex-row justify-between items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">基数変換 & タイムアタック</h1>
+            <h1 className="text-3xl font-bold text-white">基数変換マスター</h1>
             <p className="mt-2 text-sm text-slate-400">
               2進数・10進数・16進数の相互変換とタイムアタック学習ツール
             </p>
@@ -448,6 +454,12 @@ export default function Home() {
                         spellCheck={false}
                         value={userAnswer}
                         onChange={(e) => handleAnswerChange(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAnswerSubmit(e as unknown as React.FormEvent);
+                          }
+                        }}
                         placeholder="半角英数字で入力..."
                         autoFocus
                         className="flex-1 px-5 py-4 rounded-xl border border-slate-700 bg-slate-950 text-xl font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-sm"
@@ -457,7 +469,7 @@ export default function Home() {
                       </Button>
                     </div>
                     <p className="text-xs text-slate-500 text-center">
-                      半角英数字のみ入力可能（Enterキーで解答送信）
+                      半角英数字のみ入力可能（Enterキー1回で解答送信）
                     </p>
                   </form>
                 </div>
