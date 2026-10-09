@@ -365,7 +365,7 @@ export default function Home() {
                 <CardDescription>変換パターンと2進数桁数を選んで全10問のタイムアタックに挑戦します。</CardDescription>
               </div>
               {taState === "playing" && (
-                <Button variant="destructive" onClick={quitGame} className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg">
+                <Button variant="secondary" onClick={quitGame} className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg border-transparent">
                   中断する (終了)
                 </Button>
               )}
