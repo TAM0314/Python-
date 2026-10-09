@@ -35,6 +35,7 @@ export default function Home() {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [isComposing, setIsComposing] = useState<boolean>(false);
   const [history, setHistory] = useState<{ q: Question; userAns: string; correct: boolean }[]>([]);
 
   // Converter sync logic
@@ -122,6 +123,13 @@ export default function Home() {
       clearInterval(timerInterval);
       setTimerInterval(null);
     }
+  };
+
+  const quitGame = () => {
+    stopTimer();
+    setTaState("idle");
+    setUserAnswer("");
+    setFeedback(null);
   };
 
   const generateQuestions = (): Question[] => {
@@ -351,9 +359,16 @@ export default function Home() {
           </Card>
         ) : (
           <Card>
-            <CardHeader>
-              <CardTitle>タイムアタックモード</CardTitle>
-              <CardDescription>変換パターンと2進数桁数を選んで全10問のタイムアタックに挑戦します。</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>タイムアタックモード</CardTitle>
+                <CardDescription>変換パターンと2進数桁数を選んで全10問のタイムアタックに挑戦します。</CardDescription>
+              </div>
+              {taState === "playing" && (
+                <Button variant="destructive" onClick={quitGame} className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg">
+                  中断する (終了)
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
               {taState === "idle" && (
@@ -454,8 +469,10 @@ export default function Home() {
                         spellCheck={false}
                         value={userAnswer}
                         onChange={(e) => handleAnswerChange(e.target.value)}
+                        onCompositionStart={() => setIsComposing(true)}
+                        onCompositionEnd={() => setIsComposing(false)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
+                          if (e.key === "Enter" && !isComposing) {
                             e.preventDefault();
                             handleAnswerSubmit(e as unknown as React.FormEvent);
                           }
