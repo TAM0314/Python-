@@ -38,6 +38,63 @@ export default function Home() {
   const [isComposing, setIsComposing] = useState<boolean>(false);
   const [history, setHistory] = useState<{ q: Question; userAns: string; correct: boolean }[]>([]);
 
+  interface TaRecord {
+    date: string;
+    timeMs: number;
+    modeText: string;
+    avgTime: string;
+  }
+  const [historyRecords, setHistoryRecords] = useState<TaRecord[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("base_converter_ta_records");
+      if (saved) {
+        setHistoryRecords(JSON.parse(saved));
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  const finishGame = () => {
+    stopTimer();
+    const finalElapsed = Date.now() - startTime;
+    setElapsedTime(finalElapsed);
+    setTaState("finished");
+
+    const modeNames: Record<string, string> = {
+      random: "ランダム",
+      "2to10": "2 ⇒ 10進数",
+      "10to2": "10 ⇒ 2進数",
+      "10to16": "10 ⇒ 16進数",
+      "16to10": "16 ⇒ 10進数",
+      "2to16": "2 ⇒ 16進数",
+      "16to2": "16 ⇒ 2進数",
+    };
+    const modeDesc = taModeSelect === "random" || taModeSelect === "10to16" || taModeSelect === "16to10"
+      ? modeNames[taModeSelect] || taModeSelect
+      : `${modeNames[taModeSelect] || taModeSelect} (${digitCount}桁)`;
+
+    const now = new Date();
+    const dateStr = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const newRecord: TaRecord = {
+      date: dateStr,
+      timeMs: finalElapsed,
+      modeText: modeDesc,
+      avgTime: (finalElapsed / 1000 / 10).toFixed(2),
+    };
+
+    const updated = [newRecord, ...historyRecords].slice(0, 5);
+    setHistoryRecords(updated);
+    try {
+      localStorage.setItem("base_converter_ta_records", JSON.stringify(updated));
+    } catch (e) {
+      // ignore
+    }
+  };
+
   // Converter sync logic
   useEffect(() => {
     if (activeField === "dec") {
@@ -232,8 +289,7 @@ export default function Home() {
         setCurrentIndex(currentIndex + 1);
         setUserAnswer("");
       } else {
-        stopTimer();
-        setTaState("finished");
+        finishGame();
       }
     } else {
       setFeedback("不正解... もう一度！ ❌");
@@ -372,60 +428,93 @@ export default function Home() {
             </CardHeader>
             <CardContent className="space-y-6">
               {taState === "idle" && (
-                <div className="text-center space-y-6 py-8">
-                  <div className="w-20 h-20 bg-cyan-950 text-cyan-400 rounded-2xl mx-auto flex items-center justify-center text-3xl font-bold shadow-inner border border-cyan-800">
-                    ⏱️
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-2xl font-bold text-white">タイムアタック開始準備</h3>
-                    <p className="text-sm text-slate-400 max-w-md mx-auto">
-                      変換モードと2進数の桁数を選択してスタートボタンを押してください。
-                    </p>
-                  </div>
-
-                  <div className="max-w-xs mx-auto space-y-4 text-left">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                        変換モード選択
-                      </label>
-                      <select
-                        value={taModeSelect}
-                        onChange={(e) => setTaModeSelect(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                      >
-                        <option value="random">🔀 ランダム（すべての組み合わせ）</option>
-                        <option value="2to10">2進数 ⇒ 10進数</option>
-                        <option value="10to2">10進数 ⇒ 2進数</option>
-                        <option value="10to16">10進数 ⇒ 16進数</option>
-                        <option value="16to10">16進数 ⇒ 10進数</option>
-                        <option value="2to16">2進数 ⇒ 16進数</option>
-                        <option value="16to2">16進数 ⇒ 2進数</option>
-                      </select>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center py-4">
+                  {/* Left Column: Recent 5 Records */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <h4 className="text-base font-bold text-white flex items-center gap-2">
+                        <span>📊</span> 直近5回のタイム実績
+                      </h4>
+                      <span className="text-xs text-slate-500">※クリア時のみ記録</span>
                     </div>
-
-                    {taModeSelect !== "10to16" && taModeSelect !== "16to10" && (
-                      <div className="space-y-1">
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-                          2進数の桁数 (n桁)
-                        </label>
-                        <select
-                          value={digitCount}
-                          onChange={(e) => setDigitCount(parseInt(e.target.value, 10))}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        >
-                          <option value={2}>2桁 (0 ～ 3)</option>
-                          <option value={3}>3桁 (0 ～ 7)</option>
-                          <option value={4}>4桁 (デフォルト: 0 ～ 15)</option>
-                          <option value={6}>6桁 (0 ～ 63)</option>
-                          <option value={8}>8桁 (0 ～ 255)</option>
-                        </select>
+                    {historyRecords.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500 text-sm">
+                        まだクリア実績がありません。<br />タイムアタックに挑戦してみましょう！
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {historyRecords.map((rec, idx) => (
+                          <div key={idx} className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                            <div className="space-y-0.5">
+                              <div className="text-xs text-cyan-400 font-semibold">{rec.modeText}</div>
+                              <div className="text-xs text-slate-500">{rec.date}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-mono font-bold text-white">{formatTime(rec.timeMs)} 秒</div>
+                              <div className="text-[11px] text-slate-400">平均 {rec.avgTime} 秒/問</div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
 
-                  <Button onClick={handleStartGame} className="px-8 py-4 text-lg">
-                    タイムアタック開始！
-                  </Button>
+                  {/* Right Column: Settings & Start Button */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center space-y-6">
+                    <div className="w-16 h-16 bg-cyan-950 text-cyan-400 rounded-2xl mx-auto flex items-center justify-center text-2xl font-bold shadow-inner border border-cyan-800">
+                      ⏱️
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold text-white">タイムアタック開始準備</h3>
+                      <p className="text-xs text-slate-400">
+                        変換モードと桁数を選んでスタート！
+                      </p>
+                    </div>
+
+                    <div className="space-y-4 text-left">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                          変換モード選択
+                        </label>
+                        <select
+                          value={taModeSelect}
+                          onChange={(e) => setTaModeSelect(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        >
+                          <option value="random">🔀 ランダム（すべての組み合わせ）</option>
+                          <option value="2to10">2進数 ⇒ 10進数</option>
+                          <option value="10to2">10進数 ⇒ 2進数</option>
+                          <option value="10to16">10進数 ⇒ 16進数</option>
+                          <option value="16to10">16進数 ⇒ 10進数</option>
+                          <option value="2to16">2進数 ⇒ 16進数</option>
+                          <option value="16to2">16進数 ⇒ 2進数</option>
+                        </select>
+                      </div>
+
+                      {taModeSelect !== "10to16" && taModeSelect !== "16to10" && (
+                        <div className="space-y-1">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                            2進数の桁数 (n桁)
+                          </label>
+                          <select
+                            value={digitCount}
+                            onChange={(e) => setDigitCount(parseInt(e.target.value, 10))}
+                            className="w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-950 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          >
+                            <option value={2}>2桁 (0 ～ 3)</option>
+                            <option value={3}>3桁 (0 ～ 7)</option>
+                            <option value={4}>4桁 (デフォルト: 0 ～ 15)</option>
+                            <option value={6}>6桁 (0 ～ 63)</option>
+                            <option value={8}>8桁 (0 ～ 255)</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    <Button onClick={handleStartGame} className="w-full py-4 text-lg">
+                      タイムアタック開始！
+                    </Button>
+                  </div>
                 </div>
               )}
 
