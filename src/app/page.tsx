@@ -254,19 +254,19 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-6">
-      <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6">
-        <header className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-8 shadow-2xl shadow-black/20 backdrop-blur-xl flex flex-col sm:flex-row justify-between items-center gap-4">
+    <main className="min-h-screen bg-slate-950 text-slate-100 p-3 sm:p-6">
+      <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-4 sm:gap-6">
+        <header className="rounded-2xl sm:rounded-[2rem] border border-slate-800 bg-slate-900/80 p-5 sm:p-8 shadow-2xl shadow-black/20 backdrop-blur-xl flex flex-col sm:flex-row justify-between items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">基数変換マスター</h1>
-            <p className="mt-2 text-sm text-slate-400">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">基数変換マスター</h1>
+            <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-400">
               2進数・10進数・16進数の相互変換とタイムアタック学習ツール
             </p>
           </div>
-          <div className="flex bg-slate-800 p-1 rounded-xl">
+          <div className="flex w-full sm:w-auto bg-slate-800 p-1 rounded-xl">
             <button
               onClick={() => setMode("timeattack")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 mode === "timeattack" ? "bg-cyan-600 text-white shadow" : "text-slate-400 hover:text-white"
               }`}
             >
@@ -274,7 +274,7 @@ export default function Home() {
             </button>
             <button
               onClick={() => setMode("converter")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 mode === "converter" ? "bg-cyan-600 text-white shadow" : "text-slate-400 hover:text-white"
               }`}
             >
@@ -290,7 +290,7 @@ export default function Home() {
               <CardDescription>任意の欄に入力すると自動で他の進数に変換されます。</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                 <div className="space-y-2 bg-slate-900 p-4 rounded-xl border border-slate-800">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
                     10進数 (Decimal)
@@ -300,7 +300,7 @@ export default function Home() {
                     value={decInput}
                     onChange={(e) => handleDecChange(e.target.value)}
                     placeholder="例: 42"
-                    className="w-full px-4 py-3 rounded-lg border border-slate-700 bg-slate-950 text-lg font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-4 py-3 rounded-lg border border-slate-700 bg-slate-950 text-base sm:text-lg font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
                   <p className="text-xs text-slate-500">使用文字: 0-9</p>
                 </div>
@@ -314,7 +314,7 @@ export default function Home() {
                     value={binInput}
                     onChange={(e) => handleBinChange(e.target.value)}
                     placeholder="例: 101010"
-                    className="w-full px-4 py-3 rounded-lg border border-slate-700 bg-slate-950 text-lg font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-4 py-3 rounded-lg border border-slate-700 bg-slate-950 text-base sm:text-lg font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
                   <p className="text-xs text-slate-500">使用文字: 0, 1</p>
                 </div>
@@ -328,25 +328,25 @@ export default function Home() {
                     value={hexInput}
                     onChange={(e) => handleHexChange(e.target.value.toLowerCase())}
                     placeholder="例: 2a"
-                    className="w-full px-4 py-3 rounded-lg border border-slate-700 bg-slate-950 text-lg font-mono text-white uppercase focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-4 py-3 rounded-lg border border-slate-700 bg-slate-950 text-base sm:text-lg font-mono text-white uppercase focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
                   <p className="text-xs text-slate-500">使用文字: 0-9, a-f</p>
                 </div>
               </div>
 
               {decInput !== "" && !isNaN(parseInt(decInput, 10)) && (
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 space-y-3">
+                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 sm:p-5 space-y-3">
                   <h3 className="text-sm font-semibold text-cyan-400">詳細情報 (8bit パディング表示)</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-mono">
-                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 flex justify-between">
-                      <span className="text-slate-400">8ビット2進数:</span>
-                      <span className="font-bold text-cyan-400">
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 flex justify-between items-center overflow-x-auto">
+                      <span className="text-slate-400 shrink-0">8ビット2進数:</span>
+                      <span className="font-bold text-cyan-400 ml-2">
                         {parseInt(decInput, 10) >= 0 && parseInt(decInput, 10) <= 255
                           ? parseInt(decInput, 10).toString(2).padStart(8, "0")
                           : "範囲外 (0-255)"}
                       </span>
                     </div>
-                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 flex justify-between">
+                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 flex justify-between items-center">
                       <span className="text-slate-400">16進数 (大文字):</span>
                       <span className="font-bold text-cyan-400">
                         0x{parseInt(decInput, 10).toString(16).toUpperCase()}
@@ -365,7 +365,7 @@ export default function Home() {
                 <CardDescription>変換パターンと2進数桁数を選んで全10問のタイムアタックに挑戦します。</CardDescription>
               </div>
               {taState === "playing" && (
-                <Button variant="secondary" onClick={quitGame} className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg border-transparent">
+                <Button variant="secondary" onClick={quitGame} className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg border-transparent shrink-0">
                   中断する (終了)
                 </Button>
               )}
@@ -440,7 +440,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-4">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-8 text-center space-y-4">
                     <span className="inline-block bg-cyan-950 text-cyan-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-cyan-800">
                       {(() => {
                         const baseNames = { 2: "2進数", 10: "10進数", 16: "16進数" };
@@ -448,7 +448,7 @@ export default function Home() {
                         return `${baseNames[q.fromBase]} ⇒ ${baseNames[q.toBase]}`;
                       })()}
                     </span>
-                    <h3 className="text-2xl font-bold text-white">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white break-words">
                       {questions[currentIndex].questionStr}
                     </h3>
                     {feedback && (
@@ -459,7 +459,7 @@ export default function Home() {
                   </div>
 
                   <form onSubmit={handleAnswerSubmit} className="space-y-4">
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <input
                         type="text"
                         lang="en"
@@ -479,9 +479,9 @@ export default function Home() {
                         }}
                         placeholder="半角英数字で入力..."
                         autoFocus
-                        className="flex-1 px-5 py-4 rounded-xl border border-slate-700 bg-slate-950 text-xl font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-sm"
+                        className="w-full sm:flex-1 px-5 py-4 rounded-xl border border-slate-700 bg-slate-950 text-lg sm:text-xl font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-sm"
                       />
-                      <Button type="submit" className="px-8 py-4 text-lg">
+                      <Button type="submit" className="w-full sm:w-auto px-8 py-4 text-lg">
                         解答
                       </Button>
                     </div>
